@@ -1,0 +1,7 @@
+{
+  "name": "ESTOQUE MASTER - Controle de Matéria Prima",
+  "description": "Sistema robusto de gerenciamento de estoque de matéria prima com suporte a entradas, saídas, ajustes e exportação de relatórios (PDF, Excel, CSV).",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

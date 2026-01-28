@@ -1,5 +1,5 @@
 
-import { Product, Transaction } from '../types';
+import { Product, Transaction } from '../types.ts';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -37,7 +37,6 @@ export const exportService = {
       currency: 'BRL',
     });
 
-    // Aba 1: Inventário Atual Elaborado
     const inventoryData = products.map(p => {
       const valorTotalCusto = p.currentStock * p.costPrice;
       const valorTotalVenda = p.currentStock * p.salePrice;
@@ -68,7 +67,6 @@ export const exportService = {
       };
     });
 
-    // Aba 2: Histórico de Transações
     const historyData = transactions.map(t => ({
       'Data': new Date(t.date).toLocaleString('pt-BR'),
       'Tipo': t.type,
@@ -79,8 +77,6 @@ export const exportService = {
     }));
 
     const wb = XLSX.utils.book_new();
-
-    // Configuração da planilha de Inventário
     const wsInventory = XLSX.utils.json_to_sheet(inventoryData);
     const wsInventoryCols = [
       { wch: 10 }, { wch: 45 }, { wch: 20 }, { wch: 10 }, { wch: 15 }, 
@@ -90,7 +86,6 @@ export const exportService = {
     wsInventory['!cols'] = wsInventoryCols;
     XLSX.utils.book_append_sheet(wb, wsInventory, "Inventário Detalhado");
 
-    // Configuração da planilha de Histórico
     const wsHistory = XLSX.utils.json_to_sheet(historyData);
     const wsHistoryCols = [
       { wch: 20 }, { wch: 15 }, { wch: 45 }, { wch: 15 }, { wch: 18 }, { wch: 50 }
@@ -146,7 +141,7 @@ export const exportService = {
     });
 
     doc.setFontSize(22);
-    doc.setTextColor(79, 70, 229); // Indigo-600
+    doc.setTextColor(79, 70, 229);
     doc.text(`Relatório Detalhado: ${product.name}`, 14, 20);
     
     doc.setFontSize(10);
@@ -154,7 +149,6 @@ export const exportService = {
     doc.text(`Código: ${product.code} | Categoria: ${product.category} | Unidade: ${product.unit}`, 14, 28);
     doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 33);
 
-    // Dados de Estoque
     doc.setFontSize(14);
     doc.setTextColor(0);
     doc.text('Status de Estoque', 14, 45);
@@ -175,7 +169,6 @@ export const exportService = {
       headStyles: { fillColor: [79, 70, 229] }
     });
 
-    // Histórico de Movimentações
     doc.setFontSize(14);
     doc.text('Histórico Recente de Movimentações', 14, (doc as any).lastAutoTable.finalY + 15);
 
@@ -193,7 +186,7 @@ export const exportService = {
       head: historyHeaders,
       body: historyBody,
       theme: 'grid',
-      headStyles: { fillColor: [31, 41, 55] }, // Slate-800
+      headStyles: { fillColor: [31, 41, 55] },
       styles: { fontSize: 8 }
     });
 

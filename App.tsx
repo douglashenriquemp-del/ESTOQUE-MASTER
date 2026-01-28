@@ -60,17 +60,14 @@ const App: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'name', direction: 'asc' });
 
-  // Selection states
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkMenu, setShowBulkMenu] = useState(false);
   const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(new Set());
   
-  // Modal states
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [modalType, setModalType] = useState<TransactionType | 'add' | 'edit' | 'bulkAdd' | null>(null);
   const [showConfirmStep, setShowConfirmStep] = useState(false);
   
-  // Form states
   const [quantity, setQuantity] = useState<number>(0);
   const [transactionCost, setTransactionCost] = useState<number>(0);
   const [notes, setNotes] = useState('');
@@ -333,7 +330,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-20 md:pb-0 md:pl-64 bg-slate-50/50 text-slate-900 transition-all duration-500">
-      {/* Sidebar / Bottom Nav (Mobile Friendly) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-200 flex justify-around p-3 pb-safe z-40 md:top-0 md:bottom-auto md:left-0 md:w-64 md:h-screen md:flex-col md:justify-start md:p-6 md:border-r md:border-t-0 shadow-2xl md:shadow-none">
         <div className="hidden md:flex items-center gap-3 mb-10 text-indigo-600 font-bold text-xl px-2">
           <div className="bg-indigo-600 text-white p-2 rounded-xl shadow-lg shadow-indigo-100"><PackageIcon /></div>
@@ -353,7 +349,6 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      {/* Header - Fixed on top */}
       <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-slate-200 p-4 pt-safe z-30 flex flex-col md:flex-row justify-between items-center gap-4 md:px-8 md:py-6 shadow-sm">
         <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight uppercase">
           {currentView === 'inventory' ? 'Inventário' : currentView === 'history' ? 'Histórico' : 'Painel de Controle'}
@@ -390,7 +385,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto relative min-h-[calc(100vh-140px)]">
         {currentView === 'inventory' ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 pb-32">
@@ -450,7 +444,6 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* SEÇÃO: AUTONOMIA EM DIAS */}
                   <div className={`p-4 rounded-3xl border transition-all duration-300 mb-5 flex items-center justify-between ${autonomyDays !== null && autonomyDays <= 10 ? 'bg-red-50 border-red-100 text-red-600' : 'bg-indigo-50/30 border-indigo-100/30 text-indigo-600'}`}>
                     <div className="flex items-center gap-2">
                       <CalendarIcon />
@@ -459,7 +452,6 @@ const App: React.FC = () => {
                     <span className="text-lg font-black tabular-nums">{autonomyDays !== null ? `${Math.floor(autonomyDays)}d` : '--'}</span>
                   </div>
 
-                  {/* SEÇÃO: HISTÓRICO DE CUSTOS (Expansível) */}
                   <div 
                     onClick={(e) => toggleExpandHistory(e, product.id)}
                     className="bg-slate-50/50 rounded-[32px] p-5 mb-0 border border-slate-100/50 hover:bg-slate-100/80 transition-all active:scale-95"
@@ -501,11 +493,12 @@ const App: React.FC = () => {
                     </div>
                   )}
                 </div>
-              ) : null) : (
+              );
+            }) : (
                 <div className="col-span-full py-20 text-center">
                    <p className="text-slate-400 font-bold text-lg">Nenhum material encontrado.</p>
                 </div>
-              )}
+            )}
           </div>
         ) : currentView === 'history' ? (
           <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-300">
@@ -550,7 +543,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Floating Bulk Menu */}
         {selectedIds.size > 0 && currentView === 'inventory' && (
           <div className="fixed bottom-24 md:bottom-8 left-4 right-4 md:left-[calc(50%+128px)] md:right-auto md:-translate-x-1/2 bg-slate-900 text-white px-8 py-5 rounded-[40px] shadow-2xl z-50 flex items-center justify-between gap-6 animate-in slide-in-from-bottom-10">
              <span className="text-sm font-black text-indigo-400 uppercase">{selectedIds.size} selecionados</span>
@@ -568,7 +560,6 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Modals - Common style across app */}
       {selectedProduct && modalType && ['ENTRADA', 'SAÍDA', 'AJUSTE', 'bulkAdd'].includes(modalType) && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[100] flex items-center justify-center p-4">
            <div className="bg-white rounded-[48px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in slide-in-from-bottom-4 duration-300">
@@ -604,6 +595,7 @@ const App: React.FC = () => {
               </div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Código Referência</label><input type="text" value={productForm.code} onChange={e => setProductForm({...productForm, code: e.target.value})} className="w-full bg-slate-100 p-5 rounded-3xl font-bold outline-none border-none" /></div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Categoria</label><input type="text" value={productForm.category} onChange={e => setProductForm({...productForm, category: e.target.value})} className="w-full bg-slate-100 p-5 rounded-3xl font-bold outline-none border-none" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Unidade (ex: KG, SC, BB)</label><input type="text" value={productForm.unit} onChange={e => setProductForm({...productForm, unit: e.target.value})} className="w-full bg-slate-100 p-5 rounded-3xl font-bold outline-none border-none" /></div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Custo Unitário (R$)</label><input type="number" step="0.01" value={productForm.costPrice} onChange={e => setProductForm({...productForm, costPrice: parseFloat(e.target.value)})} className="w-full bg-slate-100 p-5 rounded-3xl font-black text-indigo-600 border-none outline-none" /></div>
               <div><label className="text-[10px] font-black text-emerald-600 uppercase mb-2 block">Venda Sugerida (R$)</label><input type="number" step="0.01" value={productForm.salePrice} onChange={e => setProductForm({...productForm, salePrice: parseFloat(e.target.value)})} className="w-full bg-emerald-50 p-5 rounded-3xl font-black text-emerald-700 border-none outline-none" /></div>
               <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Estoque Mínimo</label><input type="number" value={productForm.minStock} onChange={e => setProductForm({...productForm, minStock: parseFloat(e.target.value)})} className="w-full bg-slate-100 p-5 rounded-3xl font-bold border-none outline-none" /></div>

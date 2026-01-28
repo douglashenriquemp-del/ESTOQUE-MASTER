@@ -1,5 +1,5 @@
 
-import { Product } from '../types';
+import { Product } from '../types.ts';
 
 export const INITIAL_PRODUCTS: Product[] = [
   { id: '1', code: '2170', name: 'AÇAFRÃO RAIZ SC C/ 25Kg', category: 'Especiarias', unit: 'SC', safetyStock: 10, minStock: 20, monthlyConsumption: 300, previousStock: 14, currentStock: 14, costPrice: 350.00, salePrice: 490.00, previousCostPrice: 340.00, costHistory: [{price: 350, date: '2024-05-10T10:00:00Z'}, {price: 340, date: '2024-04-05T14:30:00Z'}] },

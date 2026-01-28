@@ -1,6 +1,6 @@
 
-import { Product, Transaction } from '../types';
-import { INITIAL_PRODUCTS } from '../data/initialData';
+import { Product, Transaction } from '../types.ts';
+import { INITIAL_PRODUCTS } from '../data/initialData.ts';
 
 const PRODUCTS_KEY = 'inventory_products';
 const TRANSACTIONS_KEY = 'inventory_transactions';

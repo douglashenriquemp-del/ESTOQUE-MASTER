@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Product, Transaction, TransactionType } from './types';
-import { storageService } from './services/storageService';
-import { exportService } from './services/exportService';
+import { Product, Transaction, TransactionType } from './types.ts';
+import { storageService } from './services/storageService.ts';
+import { exportService } from './services/exportService.ts';
 import { 
   PlusIcon, 
   MinusIcon, 
@@ -18,7 +18,7 @@ import {
   CalendarIcon,
   CopyIcon,
   FileTextIcon
-} from './components/Icons';
+} from './components/Icons.tsx';
 
 type View = 'inventory' | 'history' | 'stats';
 type SortField = 'name' | 'code' | 'currentStock';

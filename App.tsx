@@ -3,7 +3,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Transaction, TransactionType } from './types';
 import { storageService } from './services/storageService';
 import { exportService } from './services/exportService';
-import { GoogleGenAI } from "@google/genai";
 import { 
   PlusIcon, 
   MinusIcon, 
@@ -17,12 +16,11 @@ import {
   OutOfStockIcon,
   TrendingUpIcon,
   CalendarIcon,
-  BrainIcon,
   CopyIcon,
   FileTextIcon
 } from './components/Icons';
 
-type View = 'inventory' | 'history' | 'stats' | 'ai';
+type View = 'inventory' | 'history' | 'stats';
 type SortField = 'name' | 'code' | 'currentStock';
 type SortDirection = 'asc' | 'desc';
 
@@ -61,11 +59,6 @@ const App: React.FC = () => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'name', direction: 'asc' });
-  
-  // AI States
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiResponse, setAiResponse] = useState<string | null>(null);
-  const [aiPrompt, setAiPrompt] = useState('');
 
   // Selection states
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -153,51 +146,6 @@ const App: React.FC = () => {
       uniqueItemsCount: products.length
     };
   }, [products]);
-
-  // AI Assistant Logic
-  const handleAskAI = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!aiPrompt.trim()) return;
-
-    setAiLoading(true);
-    setAiResponse(null);
-
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-      
-      const context = {
-        products: products.map(p => ({
-          name: p.name,
-          code: p.code,
-          stock: p.currentStock,
-          min: p.minStock,
-          safety: p.safetyStock,
-          cost: p.costPrice,
-          category: p.category,
-          consumption: p.monthlyConsumption,
-          autonomy: p.monthlyConsumption > 0 ? Math.floor((p.currentStock / p.monthlyConsumption) * 30) : 0
-        })),
-        recentTransactions: transactions.slice(0, 15)
-      };
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Analise estrategicamente meu estoque e responda à consulta: "${aiPrompt}". 
-        DADOS DO SISTEMA: ${JSON.stringify(context)}.`,
-        config: {
-          thinkingConfig: { thinkingBudget: 32768 },
-          systemInstruction: "Você é um Analista de Suprimentos Sênior. Sua missão é fornecer recomendações de compra, alertas de risco e análise de custos baseada em dados reais. Use o Thinking Mode para processar cenários complexos."
-        },
-      });
-
-      setAiResponse(response.text || "Sem resposta da IA.");
-    } catch (error) {
-      console.error("AI Error:", error);
-      setAiResponse("Erro ao consultar a IA. Tente novamente.");
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   const toggleSelection = (id: string) => {
     const next = new Set(selectedIds);
@@ -402,16 +350,13 @@ const App: React.FC = () => {
           <button onClick={() => setCurrentView('stats')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'stats' ? 'text-indigo-600 md:bg-indigo-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
             <StatsIcon /> <span className="text-[10px] md:text-base">Painel</span>
           </button>
-          <button onClick={() => setCurrentView('ai')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'ai' ? 'text-purple-600 md:bg-purple-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
-            <BrainIcon /> <span className="text-[10px] md:text-base">Analista IA</span>
-          </button>
         </div>
       </nav>
 
       {/* Header */}
       <header className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-slate-200 p-4 z-30 flex flex-col md:flex-row justify-between items-center gap-4 md:px-8 md:py-6">
         <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight uppercase">
-          {currentView === 'inventory' ? 'Inventário' : currentView === 'history' ? 'Histórico' : currentView === 'ai' ? 'Analista IA (Thinking Mode)' : 'Dashboard'}
+          {currentView === 'inventory' ? 'Inventário' : currentView === 'history' ? 'Histórico' : 'Painel de Controle'}
         </h1>
         
         <div className="flex flex-wrap items-center gap-2 md:gap-4 w-full md:w-auto">
@@ -568,7 +513,7 @@ const App: React.FC = () => {
               </table>
             </div>
           </div>
-        ) : currentView === 'stats' ? (
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Custo</p>
@@ -585,47 +530,6 @@ const App: React.FC = () => {
             <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">SKUs</p>
               <h4 className="text-3xl font-black text-slate-800">{stats.uniqueItemsCount}</h4>
-            </div>
-          </div>
-        ) : (
-          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-white rounded-[48px] shadow-2xl border border-slate-100 p-8 md:p-12">
-               <div className="flex items-center gap-6 mb-12">
-                  <div className="w-16 h-16 bg-purple-100 rounded-3xl flex items-center justify-center text-purple-600">
-                    <BrainIcon />
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-black tracking-tighter">Analista Estratégico IA</h2>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Gemini 3 Pro + Thinking Mode</p>
-                  </div>
-               </div>
-
-               <form onSubmit={handleAskAI} className="relative mb-12">
-                  <textarea 
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    placeholder="Quais insumos estão com estoque crítico para as próximas semanas?"
-                    className="w-full bg-slate-50 border-none rounded-[32px] p-8 pb-20 text-xl font-medium focus:ring-4 focus:ring-purple-200 outline-none min-h-[160px] resize-none"
-                  />
-                  <button type="submit" disabled={aiLoading} className="absolute bottom-6 right-6 bg-purple-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-xl active:scale-95 transition-all">
-                    {aiLoading ? "Pensando..." : "Consultar Analista"}
-                  </button>
-               </form>
-
-               {aiLoading && (
-                 <div className="p-8 bg-purple-50 rounded-[32px] animate-pulse">
-                    <div className="h-4 bg-purple-200 rounded w-3/4 mb-4"></div>
-                    <div className="h-4 bg-purple-200 rounded w-full mb-4"></div>
-                    <p className="text-purple-600 font-bold text-xs uppercase text-center pt-2">Processando análise preditiva de estoque...</p>
-                 </div>
-               )}
-
-               {aiResponse && !aiLoading && (
-                 <div className="p-10 bg-slate-50 rounded-[48px] border border-slate-100 prose prose-slate max-w-none shadow-inner leading-relaxed whitespace-pre-wrap font-medium text-lg">
-                    <div className="flex items-center gap-2 mb-6 text-purple-600 font-black uppercase text-xs tracking-widest"><BrainIcon /> Insights Estratégicos</div>
-                    {aiResponse}
-                 </div>
-               )}
             </div>
           </div>
         )}

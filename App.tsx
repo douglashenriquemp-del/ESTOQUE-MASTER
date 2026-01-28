@@ -332,29 +332,29 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pb-20 md:pb-0 md:pl-64 bg-slate-50/50 text-slate-900">
-      {/* Sidebar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-3 z-40 md:top-0 md:bottom-auto md:left-0 md:w-64 md:h-screen md:flex-col md:justify-start md:p-6 md:border-r md:border-t-0 shadow-xl md:shadow-none">
+    <div className="min-h-screen pb-20 md:pb-0 md:pl-64 bg-slate-50/50 text-slate-900 transition-all duration-500">
+      {/* Sidebar / Bottom Nav (Mobile Friendly) */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-200 flex justify-around p-3 pb-safe z-40 md:top-0 md:bottom-auto md:left-0 md:w-64 md:h-screen md:flex-col md:justify-start md:p-6 md:border-r md:border-t-0 shadow-2xl md:shadow-none">
         <div className="hidden md:flex items-center gap-3 mb-10 text-indigo-600 font-bold text-xl px-2">
-          <div className="bg-indigo-600 text-white p-2 rounded-xl"><PackageIcon /></div>
+          <div className="bg-indigo-600 text-white p-2 rounded-xl shadow-lg shadow-indigo-100"><PackageIcon /></div>
           <span>EstoqueMaster</span>
         </div>
         
-        <div className="flex w-full justify-around md:flex-col md:gap-2">
-          <button onClick={() => setCurrentView('inventory')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'inventory' ? 'text-indigo-600 md:bg-indigo-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
+        <div className="flex w-full justify-around md:flex-col md:gap-3">
+          <button onClick={() => setCurrentView('inventory')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-2xl transition-all active:scale-90 md:active:scale-100 ${currentView === 'inventory' ? 'text-indigo-600 md:bg-indigo-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
             <PackageIcon /> <span className="text-[10px] md:text-base">Estoque</span>
           </button>
-          <button onClick={() => setCurrentView('history')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'history' ? 'text-indigo-600 md:bg-indigo-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
+          <button onClick={() => setCurrentView('history')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-2xl transition-all active:scale-90 md:active:scale-100 ${currentView === 'history' ? 'text-indigo-600 md:bg-indigo-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
             <HistoryIcon /> <span className="text-[10px] md:text-base">Histórico</span>
           </button>
-          <button onClick={() => setCurrentView('stats')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'stats' ? 'text-indigo-600 md:bg-indigo-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
+          <button onClick={() => setCurrentView('stats')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-2xl transition-all active:scale-90 md:active:scale-100 ${currentView === 'stats' ? 'text-indigo-600 md:bg-indigo-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
             <StatsIcon /> <span className="text-[10px] md:text-base">Painel</span>
           </button>
         </div>
       </nav>
 
-      {/* Header */}
-      <header className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-slate-200 p-4 z-30 flex flex-col md:flex-row justify-between items-center gap-4 md:px-8 md:py-6">
+      {/* Header - Fixed on top */}
+      <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-slate-200 p-4 pt-safe z-30 flex flex-col md:flex-row justify-between items-center gap-4 md:px-8 md:py-6 shadow-sm">
         <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight uppercase">
           {currentView === 'inventory' ? 'Inventário' : currentView === 'history' ? 'Histórico' : 'Painel de Controle'}
         </h1>
@@ -362,24 +362,39 @@ const App: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2 md:gap-4 w-full md:w-auto">
           {currentView === 'inventory' && (
             <>
-              <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="flex-1 md:w-64 bg-slate-100 border-none rounded-2xl py-2 px-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              <div className="relative flex-1 md:w-64 group">
+                <input 
+                  type="text" 
+                  placeholder="Buscar material..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  className="w-full bg-slate-100 border-none rounded-2xl py-2.5 px-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" 
+                />
+              </div>
               <CategoryFilter categories={categories} selected={selectedCategory} onSelect={setSelectedCategory} />
-              <button onClick={() => setModalType('add')} className="bg-indigo-600 text-white px-4 py-2 rounded-2xl text-xs font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-100">
-                <PlusIcon /> Novo
+              <button onClick={() => setModalType('add')} className="bg-indigo-600 text-white px-5 py-2.5 rounded-2xl text-xs font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-100 active:scale-95">
+                <PlusIcon /> <span className="hidden sm:inline">Novo</span>
               </button>
             </>
           )}
-          <button onClick={() => exportService.exportToExcel(products, transactions)} className="p-2.5 bg-emerald-600 text-white rounded-2xl shadow-lg">
-            <DownloadIcon />
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => exportService.exportToExcel(products, transactions)} className="p-2.5 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-100 active:scale-95" title="Exportar Excel">
+              <DownloadIcon />
+            </button>
+            {currentView === 'inventory' && (
+              <button onClick={() => exportService.exportToPDF(processedProducts)} className="p-2.5 bg-red-600 text-white rounded-2xl shadow-lg shadow-red-100 active:scale-95" title="Exportar PDF do Inventário">
+                <FileTextIcon />
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="p-4 md:p-8 max-w-7xl mx-auto relative">
+      <main className="p-4 md:p-8 max-w-7xl mx-auto relative min-h-[calc(100vh-140px)]">
         {currentView === 'inventory' ? (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3 pb-32">
-            {processedProducts.map(product => {
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 pb-32">
+            {processedProducts.length > 0 ? processedProducts.map(product => {
               const isOutOfStock = product.currentStock === 0;
               const isRed = product.currentStock <= product.minStock;
               const isYellow = !isRed && product.currentStock <= product.minStock * 1.5;
@@ -395,35 +410,35 @@ const App: React.FC = () => {
                 <div 
                   key={product.id} 
                   onClick={() => toggleSelection(product.id)}
-                  className={`group relative bg-white rounded-[40px] border-2 p-8 shadow-sm transition-all duration-300 cursor-pointer overflow-hidden ${isSelected ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-indigo-100' : isOutOfStock ? 'border-slate-800' : isRed ? 'border-red-400' : 'border-slate-100 hover:border-slate-200 hover:shadow-xl hover:-translate-y-1'}`}
+                  className={`group relative bg-white rounded-[40px] border-2 p-6 md:p-8 shadow-sm transition-all duration-300 cursor-pointer overflow-hidden ${isSelected ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-indigo-100' : isOutOfStock ? 'border-slate-800' : isRed ? 'border-red-400' : 'border-slate-100 hover:border-slate-200 hover:shadow-xl hover:-translate-y-1'}`}
                 >
-                  <div className={`absolute top-6 right-6 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all z-10 ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 bg-white opacity-0 group-hover:opacity-100'}`}>
-                    {isSelected && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                  <div className={`absolute top-6 right-6 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all z-10 ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 bg-white opacity-100 md:opacity-0 group-hover:opacity-100'}`}>
+                    {isSelected && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                   </div>
 
-                  <div className="flex flex-wrap gap-2 mb-6">
+                  <div className="flex flex-wrap gap-2 mb-4">
                     {isOutOfStock ? (
                       <span className="bg-slate-900 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase flex items-center gap-1"><OutOfStockIcon /> Esgotado</span>
                     ) : isRed && (
                       <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase flex items-center gap-1 animate-pulse"><AlertTriangleIcon /> Crítico</span>
                     )}
-                    <span className="text-[9px] font-black text-slate-400 px-3 py-1.5 bg-slate-100 rounded-full uppercase">COD: {product.code}</span>
+                    <span className="text-[9px] font-black text-slate-400 px-3 py-1.5 bg-slate-50 rounded-full uppercase border border-slate-100">COD: {product.code}</span>
                   </div>
 
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-start gap-3 mb-2">
                     <div 
-                      className={`w-4 h-4 rounded-full flex-shrink-0 shadow-sm border border-white/20 ${isRed ? 'bg-red-500 animate-pulse' : isYellow ? 'bg-amber-400' : 'bg-emerald-500'}`} 
+                      className={`w-4 h-4 mt-1.5 rounded-full flex-shrink-0 shadow-sm border border-white/20 ${isRed ? 'bg-red-500 animate-pulse' : isYellow ? 'bg-amber-400' : 'bg-emerald-500'}`} 
                       title={isRed ? 'Status Crítico' : isYellow ? 'Atenção Necessária' : 'Status Estável'}
                     ></div>
-                    <h3 className="font-bold text-slate-800 text-xl leading-tight h-14 line-clamp-2 flex-1">{product.name}</h3>
+                    <h3 className="font-extrabold text-slate-800 text-lg md:text-xl leading-tight h-14 line-clamp-2 flex-1">{product.name}</h3>
                   </div>
                   <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-6">{product.category}</p>
 
-                  <div className="grid grid-cols-2 gap-4 border-t border-slate-50 pt-6 mb-6">
+                  <div className="grid grid-cols-2 gap-4 border-t border-slate-50 pt-5 mb-5">
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Custo Unitário</p>
                       <div className="flex items-center gap-1.5">
-                        <p className={`font-black text-base transition-all duration-500 ${isCostUp ? 'text-red-500 animate-bounce' : 'text-slate-700'}`}>
+                        <p className={`font-black text-base transition-all duration-500 ${isCostUp ? 'text-red-500 animate-cost-bounce' : 'text-slate-700'}`}>
                           {currencyFormatter.format(product.costPrice)}
                         </p>
                         {isCostUp && <TrendingUpIcon />}
@@ -436,18 +451,18 @@ const App: React.FC = () => {
                   </div>
 
                   {/* SEÇÃO: AUTONOMIA EM DIAS */}
-                  <div className={`p-4 rounded-2xl border transition-all duration-300 mb-6 flex items-center justify-between ${autonomyDays !== null && autonomyDays <= 10 ? 'bg-red-50 border-red-100 text-red-600' : 'bg-indigo-50/30 border-indigo-100/50 text-indigo-600'}`}>
+                  <div className={`p-4 rounded-3xl border transition-all duration-300 mb-5 flex items-center justify-between ${autonomyDays !== null && autonomyDays <= 10 ? 'bg-red-50 border-red-100 text-red-600' : 'bg-indigo-50/30 border-indigo-100/30 text-indigo-600'}`}>
                     <div className="flex items-center gap-2">
-                      <div className="opacity-80 scale-90"><CalendarIcon /></div>
-                      <span className="text-[10px] font-black uppercase tracking-tight">Autonomia em Dias</span>
+                      <CalendarIcon />
+                      <span className="text-[10px] font-black uppercase tracking-tight">Autonomia estimada</span>
                     </div>
-                    <span className="text-xl font-black tabular-nums">{autonomyDays !== null ? `${Math.floor(autonomyDays)}` : '--'}</span>
+                    <span className="text-lg font-black tabular-nums">{autonomyDays !== null ? `${Math.floor(autonomyDays)}d` : '--'}</span>
                   </div>
 
                   {/* SEÇÃO: HISTÓRICO DE CUSTOS (Expansível) */}
                   <div 
                     onClick={(e) => toggleExpandHistory(e, product.id)}
-                    className="bg-slate-50/50 rounded-3xl p-5 mb-0 border border-slate-100/50 hover:bg-slate-100/80 transition-all group-hover:opacity-40"
+                    className="bg-slate-50/50 rounded-[32px] p-5 mb-0 border border-slate-100/50 hover:bg-slate-100/80 transition-all active:scale-95"
                   >
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-2">
@@ -457,7 +472,7 @@ const App: React.FC = () => {
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                       </span>
                     </div>
-                    <div className={`space-y-2.5 overflow-hidden transition-all duration-300 ${isHistoryExpanded ? 'max-h-48' : 'max-h-24'}`}>
+                    <div className={`space-y-2.5 overflow-hidden transition-all duration-300 ${isHistoryExpanded ? 'max-h-64' : 'max-h-24'}`}>
                       {history.length > 0 ? history.slice(0, isHistoryExpanded ? 5 : 3).map((h, i) => (
                         <div key={i} className="flex justify-between items-center text-[10px] animate-in fade-in slide-in-from-top-1">
                           <span className="text-slate-500 font-bold">{new Date(h.date).toLocaleDateString('pt-BR')}</span>
@@ -467,46 +482,47 @@ const App: React.FC = () => {
                         <p className="text-[10px] text-slate-400 italic">Sem registros anteriores</p>
                       )}
                       {!isHistoryExpanded && history.length > 3 && (
-                        <p className="text-[9px] text-indigo-500 font-black text-center mt-2 uppercase tracking-tight">Clique para ver mais (+{history.length - 3})</p>
+                        <p className="text-[9px] text-indigo-500 font-black text-center mt-2 uppercase tracking-tight">Ver mais +{history.length - 3}</p>
                       )}
                     </div>
                   </div>
 
                   {!isSelected && (
-                    <div onClick={e => e.stopPropagation()} className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out border-t border-slate-100 shadow-inner rounded-t-[32px] flex flex-col gap-3">
-                       {/* Ações Primárias */}
-                       <div className="flex gap-3">
-                          <button onClick={() => openTransactionModal(product, TransactionType.ENTRY)} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-tight" title="Entrada"><PlusIcon /> Entrada</button>
-                          <button onClick={() => openTransactionModal(product, TransactionType.EXIT)} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-tight" title="Consumo"><MinusIcon /> Consumo</button>
+                    <div onClick={e => e.stopPropagation()} className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md p-5 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out border-t border-slate-100 shadow-inner rounded-t-[40px] flex flex-col gap-3">
+                       <div className="flex gap-2">
+                          <button onClick={() => openTransactionModal(product, TransactionType.ENTRY)} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-tight shadow-md shadow-emerald-50"><PlusIcon /> Entrada</button>
+                          <button onClick={() => openTransactionModal(product, TransactionType.EXIT)} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-tight shadow-md shadow-slate-200"><MinusIcon /> Consumo</button>
                        </div>
-                       {/* Ações Secundárias Expandidas */}
-                       <div className="flex gap-2 justify-between">
-                          <button onClick={() => openEditModal(product)} className="flex-1 bg-slate-100 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[9px] font-black uppercase" title="Editar"><EditIcon /> Editar</button>
-                          <button onClick={(e) => handleDuplicateProduct(e, product)} className="flex-1 bg-slate-100 hover:bg-blue-50 text-slate-400 hover:text-blue-600 py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[9px] font-black uppercase" title="Duplicar"><CopyIcon /> Clonar</button>
-                          <button onClick={(e) => handleProductReport(e, product)} className="flex-1 bg-slate-100 hover:bg-amber-50 text-slate-400 hover:text-amber-600 py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[9px] font-black uppercase" title="Relatório"><FileTextIcon /> PDF</button>
+                       <div className="flex gap-2">
+                          <button onClick={() => openEditModal(product)} className="flex-1 bg-slate-100 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[9px] font-black uppercase"><EditIcon /> Editar</button>
+                          <button onClick={(e) => handleDuplicateProduct(e, product)} className="flex-1 bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-600 py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[9px] font-black uppercase"><CopyIcon /> Clonar</button>
+                          <button onClick={(e) => handleProductReport(e, product)} className="flex-1 bg-slate-100 hover:bg-amber-50 text-slate-500 hover:text-amber-600 py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[9px] font-black uppercase"><FileTextIcon /> PDF</button>
                        </div>
                     </div>
                   )}
                 </div>
-              );
-            })}
+              ) : null) : (
+                <div className="col-span-full py-20 text-center">
+                   <p className="text-slate-400 font-bold text-lg">Nenhum material encontrado.</p>
+                </div>
+              )}
           </div>
         ) : currentView === 'history' ? (
-          <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center"><h2 className="text-2xl font-black uppercase tracking-tighter">Histórico de Movimentações</h2></div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
+          <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="p-6 md:p-8 border-b border-slate-50 flex justify-between items-center"><h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter">Histórico de Movimentações</h2></div>
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left min-w-[600px]">
                 <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  <tr><th className="px-8 py-5">Data</th><th className="px-8 py-5">Produto</th><th className="px-8 py-5">Tipo</th><th className="px-8 py-5 text-right">Quantidade</th><th className="px-8 py-5 text-right">Custo Unit.</th></tr>
+                  <tr><th className="px-6 py-5">Data</th><th className="px-6 py-5">Produto</th><th className="px-6 py-5">Tipo</th><th className="px-6 py-5 text-right">Quantidade</th><th className="px-6 py-5 text-right">Custo Unit.</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {transactions.map(t => (
                     <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-8 py-5 text-xs font-bold text-slate-500">{new Date(t.date).toLocaleString('pt-BR')}</td>
-                      <td className="px-8 py-5 text-xs font-black">{t.productName}</td>
-                      <td className="px-8 py-5"><span className={`text-[9px] font-black px-3 py-1.5 rounded-full uppercase ${t.type === TransactionType.ENTRY ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>{t.type}</span></td>
-                      <td className="px-8 py-5 text-xs font-black text-right tabular-nums">{t.quantity}</td>
-                      <td className="px-8 py-5 text-xs font-black text-right tabular-nums">{currencyFormatter.format(t.unitCost || 0)}</td>
+                      <td className="px-6 py-5 text-xs font-bold text-slate-500">{new Date(t.date).toLocaleString('pt-BR')}</td>
+                      <td className="px-6 py-5 text-xs font-black">{t.productName}</td>
+                      <td className="px-6 py-5"><span className={`text-[9px] font-black px-3 py-1.5 rounded-full uppercase ${t.type === TransactionType.ENTRY ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>{t.type}</span></td>
+                      <td className="px-6 py-5 text-xs font-black text-right tabular-nums">{t.quantity}</td>
+                      <td className="px-6 py-5 text-xs font-black text-right tabular-nums">{currencyFormatter.format(t.unitCost || 0)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -514,37 +530,37 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Custo</p>
-              <h4 className="text-3xl font-black text-indigo-600">{stats.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 animate-in fade-in duration-500">
+            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 group hover:border-indigo-200 transition-all">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Custo Estoque</p>
+              <h4 className="text-3xl font-black text-indigo-600 group-hover:scale-105 transition-transform origin-left">{stats.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
             </div>
-            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor Venda</p>
-              <h4 className="text-3xl font-black text-emerald-600">{stats.totalSaleValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
+            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 group hover:border-emerald-200 transition-all">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor Estimado Venda</p>
+              <h4 className="text-3xl font-black text-emerald-600 group-hover:scale-105 transition-transform origin-left">{stats.totalSaleValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
             </div>
-            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Críticos</p>
-              <h4 className="text-3xl font-black text-red-600">{stats.criticalCount}</h4>
+            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 group hover:border-red-200 transition-all">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Materiais Críticos</p>
+              <h4 className="text-3xl font-black text-red-600 group-hover:scale-105 transition-transform origin-left">{stats.criticalCount}</h4>
             </div>
-            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">SKUs</p>
-              <h4 className="text-3xl font-black text-slate-800">{stats.uniqueItemsCount}</h4>
+            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 group hover:border-slate-300 transition-all">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total de SKUs</p>
+              <h4 className="text-3xl font-black text-slate-800 group-hover:scale-105 transition-transform origin-left">{stats.uniqueItemsCount}</h4>
             </div>
           </div>
         )}
 
         {/* Floating Bulk Menu */}
         {selectedIds.size > 0 && currentView === 'inventory' && (
-          <div className="fixed bottom-8 left-4 right-4 md:left-[calc(50%+128px)] md:right-auto md:-translate-x-1/2 bg-slate-900 text-white px-8 py-5 rounded-[32px] shadow-2xl z-50 flex items-center justify-between gap-6">
+          <div className="fixed bottom-24 md:bottom-8 left-4 right-4 md:left-[calc(50%+128px)] md:right-auto md:-translate-x-1/2 bg-slate-900 text-white px-8 py-5 rounded-[40px] shadow-2xl z-50 flex items-center justify-between gap-6 animate-in slide-in-from-bottom-10">
              <span className="text-sm font-black text-indigo-400 uppercase">{selectedIds.size} selecionados</span>
              <div className="relative">
-                <button onClick={() => setShowBulkMenu(!showBulkMenu)} className="bg-indigo-600 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all">Ações em Massa</button>
+                <button onClick={() => setShowBulkMenu(!showBulkMenu)} className="bg-indigo-600 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-indigo-900/50">Ações em Massa</button>
                 {showBulkMenu && (
-                  <div className="absolute bottom-full right-0 mb-4 w-48 bg-slate-800 rounded-3xl overflow-hidden shadow-2xl">
-                    <button onClick={handleBulkZeroStock} className="w-full p-4 text-left hover:bg-white/5 border-b border-white/5 text-[10px] font-black uppercase">Zerar Estoque</button>
-                    <button onClick={handleBulkAddStock} className="w-full p-4 text-left hover:bg-white/5 border-b border-white/5 text-[10px] font-black uppercase">Adicionar Entrada</button>
-                    <button onClick={handleBulkDelete} className="w-full p-4 text-left hover:bg-red-600 text-[10px] font-black uppercase">Excluir Itens</button>
+                  <div className="absolute bottom-full right-0 mb-4 w-52 bg-slate-800 rounded-[32px] overflow-hidden shadow-2xl border border-slate-700">
+                    <button onClick={handleBulkZeroStock} className="w-full p-4 text-left hover:bg-white/10 border-b border-white/5 text-[10px] font-black uppercase transition-colors">Zerar Estoque</button>
+                    <button onClick={handleBulkAddStock} className="w-full p-4 text-left hover:bg-white/10 border-b border-white/5 text-[10px] font-black uppercase transition-colors">Adicionar Entrada</button>
+                    <button onClick={handleBulkDelete} className="w-full p-4 text-left hover:bg-red-600 text-[10px] font-black uppercase transition-colors">Excluir Itens</button>
                   </div>
                 )}
              </div>
@@ -552,25 +568,25 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Transaction Modal */}
+      {/* Modals - Common style across app */}
       {selectedProduct && modalType && ['ENTRADA', 'SAÍDA', 'AJUSTE', 'bulkAdd'].includes(modalType) && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-           <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in duration-300">
-              <h2 className="text-2xl font-black mb-6 uppercase tracking-tighter">{modalType}: {selectedProduct.name}</h2>
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+           <div className="bg-white rounded-[48px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in slide-in-from-bottom-4 duration-300">
+              <h2 className="text-2xl font-black mb-6 uppercase tracking-tighter text-slate-800">{modalType}: <span className="text-indigo-600">{selectedProduct.name}</span></h2>
               <div className="space-y-6">
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Quantidade ({selectedProduct.unit})</label>
-                    <input type="number" autoFocus value={quantity || ''} onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)} className="w-full bg-slate-50 p-5 rounded-2xl text-2xl font-black text-indigo-600 outline-none" />
+                    <input type="number" autoFocus inputMode="decimal" value={quantity || ''} onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)} className="w-full bg-slate-100 p-5 rounded-3xl text-3xl font-black text-indigo-600 outline-none border-none focus:ring-4 focus:ring-indigo-100 transition-all" />
                   </div>
                   {(modalType === TransactionType.ENTRY || modalType === TransactionType.ADJUSTMENT) && (
                     <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Custo Unitário (R$)</label>
-                      <input type="number" step="0.01" value={transactionCost || ''} onChange={(e) => setTransactionCost(parseFloat(e.target.value) || 0)} className="w-full bg-slate-50 p-5 rounded-2xl text-xl font-black text-amber-600 outline-none" />
+                      <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Custo Unitário Atualizado (R$)</label>
+                      <input type="number" step="0.01" inputMode="decimal" value={transactionCost || ''} onChange={(e) => setTransactionCost(parseFloat(e.target.value) || 0)} className="w-full bg-slate-100 p-5 rounded-3xl text-2xl font-black text-amber-600 outline-none border-none focus:ring-4 focus:ring-amber-50 transition-all" />
                     </div>
                   )}
                   <div className="flex gap-4 pt-2">
-                    <button onClick={closeModal} className="flex-1 bg-slate-100 text-slate-500 font-black py-4 rounded-2xl">Cancelar</button>
-                    <button onClick={handleTransaction} disabled={quantity <= 0} className="flex-1 bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-xl active:scale-95 transition-all">Confirmar</button>
+                    <button onClick={closeModal} className="flex-1 bg-slate-100 text-slate-500 font-black py-5 rounded-[24px] active:scale-95 transition-all">Voltar</button>
+                    <button onClick={handleTransaction} disabled={quantity <= 0} className="flex-1 bg-indigo-600 text-white font-black py-5 rounded-[24px] shadow-xl active:scale-95 transition-all disabled:opacity-50">Confirmar</button>
                   </div>
               </div>
            </div>
@@ -578,21 +594,25 @@ const App: React.FC = () => {
       )}
 
       {(modalType === 'add' || modalType === 'edit') && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-3xl p-10 shadow-2xl overflow-y-auto max-h-[90vh] animate-in zoom-in">
-            <h2 className="text-3xl font-black mb-8 tracking-tighter">{modalType === 'edit' ? 'Editar Cadastro' : 'Novo Material'}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="md:col-span-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Nome Comercial</label>
-                <input type="text" value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none" />
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 pt-safe">
+          <div className="bg-white rounded-[48px] w-full max-w-2xl p-8 md:p-12 shadow-2xl overflow-y-auto max-h-[90vh] animate-in zoom-in duration-300 no-scrollbar">
+            <h2 className="text-3xl font-black mb-10 tracking-tighter text-slate-800">{modalType === 'edit' ? 'Editar Material' : 'Novo Material'}</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="sm:col-span-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Nome Descritivo do Item</label>
+                <input type="text" value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} className="w-full bg-slate-100 p-5 rounded-3xl font-bold outline-none border-none focus:ring-4 focus:ring-indigo-100 transition-all" />
               </div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Código</label><input type="text" value={productForm.code} onChange={e => setProductForm({...productForm, code: e.target.value})} className="w-full bg-slate-50 p-5 rounded-2xl outline-none" /></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Categoria</label><input type="text" value={productForm.category} onChange={e => setProductForm({...productForm, category: e.target.value})} className="w-full bg-slate-50 p-5 rounded-2xl outline-none" /></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Custo Unitário</label><input type="number" step="0.01" value={productForm.costPrice} onChange={e => setProductForm({...productForm, costPrice: parseFloat(e.target.value)})} className="w-full bg-slate-50 p-5 rounded-2xl font-black text-indigo-600 outline-none" /></div>
-              <div><label className="text-[10px] font-black text-emerald-600 uppercase mb-2 block">Venda Unitário</label><input type="number" step="0.01" value={productForm.salePrice} onChange={e => setProductForm({...productForm, salePrice: parseFloat(e.target.value)})} className="w-full bg-emerald-50 p-5 rounded-2xl font-black text-emerald-700 outline-none" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Código Referência</label><input type="text" value={productForm.code} onChange={e => setProductForm({...productForm, code: e.target.value})} className="w-full bg-slate-100 p-5 rounded-3xl font-bold outline-none border-none" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Categoria</label><input type="text" value={productForm.category} onChange={e => setProductForm({...productForm, category: e.target.value})} className="w-full bg-slate-100 p-5 rounded-3xl font-bold outline-none border-none" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Custo Unitário (R$)</label><input type="number" step="0.01" value={productForm.costPrice} onChange={e => setProductForm({...productForm, costPrice: parseFloat(e.target.value)})} className="w-full bg-slate-100 p-5 rounded-3xl font-black text-indigo-600 border-none outline-none" /></div>
+              <div><label className="text-[10px] font-black text-emerald-600 uppercase mb-2 block">Venda Sugerida (R$)</label><input type="number" step="0.01" value={productForm.salePrice} onChange={e => setProductForm({...productForm, salePrice: parseFloat(e.target.value)})} className="w-full bg-emerald-50 p-5 rounded-3xl font-black text-emerald-700 border-none outline-none" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Estoque Mínimo</label><input type="number" value={productForm.minStock} onChange={e => setProductForm({...productForm, minStock: parseFloat(e.target.value)})} className="w-full bg-slate-100 p-5 rounded-3xl font-bold border-none outline-none" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Consumo Mensal Estimado</label><input type="number" value={productForm.monthlyConsumption} onChange={e => setProductForm({...productForm, monthlyConsumption: parseFloat(e.target.value)})} className="w-full bg-slate-100 p-5 rounded-3xl font-bold border-none outline-none" /></div>
             </div>
-            <button onClick={handleSaveProduct} className="w-full bg-indigo-600 text-white font-black py-6 rounded-[24px] mt-10 shadow-xl active:scale-[0.98] transition-all">Salvar Dados</button>
-            <button onClick={closeModal} className="w-full text-slate-400 font-bold py-4 mt-2">Cancelar Operação</button>
+            <div className="flex flex-col gap-4 mt-12">
+              <button onClick={handleSaveProduct} className="w-full bg-indigo-600 text-white font-black py-6 rounded-[32px] shadow-2xl shadow-indigo-200 active:scale-95 transition-all text-lg">Salvar Alterações</button>
+              <button onClick={closeModal} className="w-full text-slate-400 font-bold py-4 active:scale-95 transition-all">Cancelar e Voltar</button>
+            </div>
           </div>
         </div>
       )}

@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Product, Transaction, TransactionType, CostHistoryEntry } from './types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Product, Transaction, TransactionType } from './types';
 import { storageService } from './services/storageService';
 import { exportService } from './services/exportService';
+import { GoogleGenAI } from "@google/genai";
 import { 
   PlusIcon, 
   MinusIcon, 
@@ -14,12 +15,14 @@ import {
   AlertTriangleIcon,
   StatsIcon,
   OutOfStockIcon,
-  TrashIcon,
   TrendingUpIcon,
-  CalendarIcon
+  CalendarIcon,
+  BrainIcon,
+  CopyIcon,
+  FileTextIcon
 } from './components/Icons';
 
-type View = 'inventory' | 'history' | 'stats';
+type View = 'inventory' | 'history' | 'stats' | 'ai';
 type SortField = 'name' | 'code' | 'currentStock';
 type SortDirection = 'asc' | 'desc';
 
@@ -59,14 +62,18 @@ const App: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'name', direction: 'asc' });
   
+  // AI States
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+
   // Selection states
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkMenu, setShowBulkMenu] = useState(false);
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(new Set());
   
   // Modal states
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-  const [productForAnalysis, setProductForAnalysis] = useState<Product | null>(null);
   const [modalType, setModalType] = useState<TransactionType | 'add' | 'edit' | 'bulkAdd' | null>(null);
   const [showConfirmStep, setShowConfirmStep] = useState(false);
   
@@ -138,21 +145,59 @@ const App: React.FC = () => {
     const totalValue = products.reduce((acc, p) => acc + (p.currentStock * p.costPrice), 0);
     const totalSaleValue = products.reduce((acc, p) => acc + (p.currentStock * p.salePrice), 0);
     
-    const categoryValues = products.reduce((acc, p) => {
-      acc[p.category] = (acc[p.category] || 0) + (p.currentStock * p.costPrice);
-      return acc;
-    }, {} as Record<string, number>);
-
     return {
       totalItems,
       criticalCount: criticalProducts.length,
       totalValue,
       totalSaleValue,
-      uniqueItemsCount: products.length,
-      categoryValues,
-      criticalProducts: criticalProducts.slice(0, 5)
+      uniqueItemsCount: products.length
     };
   }, [products]);
+
+  // AI Assistant Logic
+  const handleAskAI = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!aiPrompt.trim()) return;
+
+    setAiLoading(true);
+    setAiResponse(null);
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+      
+      const context = {
+        products: products.map(p => ({
+          name: p.name,
+          code: p.code,
+          stock: p.currentStock,
+          min: p.minStock,
+          safety: p.safetyStock,
+          cost: p.costPrice,
+          category: p.category,
+          consumption: p.monthlyConsumption,
+          autonomy: p.monthlyConsumption > 0 ? Math.floor((p.currentStock / p.monthlyConsumption) * 30) : 0
+        })),
+        recentTransactions: transactions.slice(0, 15)
+      };
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-preview',
+        contents: `Analise estrategicamente meu estoque e responda à consulta: "${aiPrompt}". 
+        DADOS DO SISTEMA: ${JSON.stringify(context)}.`,
+        config: {
+          thinkingConfig: { thinkingBudget: 32768 },
+          systemInstruction: "Você é um Analista de Suprimentos Sênior. Sua missão é fornecer recomendações de compra, alertas de risco e análise de custos baseada em dados reais. Use o Thinking Mode para processar cenários complexos."
+        },
+      });
+
+      setAiResponse(response.text || "Sem resposta da IA.");
+    } catch (error) {
+      console.error("AI Error:", error);
+      setAiResponse("Erro ao consultar a IA. Tente novamente.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const toggleSelection = (id: string) => {
     const next = new Set(selectedIds);
@@ -161,12 +206,31 @@ const App: React.FC = () => {
     setSelectedIds(next);
   };
 
-  const selectAll = () => {
-    if (selectedIds.size === processedProducts.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(processedProducts.map(p => p.id)));
-    }
+  const toggleExpandHistory = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const next = new Set(expandedHistoryIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setExpandedHistoryIds(next);
+  };
+
+  const handleDuplicateProduct = (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    const newProduct: Product = {
+      ...product,
+      id: crypto.randomUUID(),
+      name: `${product.name} (Cópia)`,
+      currentStock: 0,
+      previousStock: 0,
+      costHistory: product.costHistory ? [...product.costHistory] : []
+    };
+    setProducts([newProduct, ...products]);
+  };
+
+  const handleProductReport = (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    const productTransactions = transactions.filter(t => t.productId === product.id);
+    exportService.exportSingleProductPDF(product, productTransactions);
   };
 
   const handleTransaction = () => {
@@ -204,13 +268,11 @@ const App: React.FC = () => {
           ? transactionCost 
           : p.costPrice;
         
-        // Verifica se o preço realmente mudou para atualizar o preço anterior e o histórico
         const costChanged = newCostPrice !== p.costPrice;
         const previousCostPrice = costChanged ? p.costPrice : p.previousCostPrice;
         
         let updatedHistory = [...(p.costHistory || [])];
         if (costChanged || updatedHistory.length === 0) {
-          // Adiciona novo registro e mantém apenas os últimos 5
           updatedHistory = [{ price: newCostPrice, date: timestamp }, ...updatedHistory].slice(0, 5);
         }
 
@@ -231,33 +293,38 @@ const App: React.FC = () => {
     closeModal();
   };
 
+  const closeModal = () => {
+    setSelectedProduct(null);
+    setModalType(null);
+    setQuantity(0);
+    setTransactionCost(0);
+    setNotes('');
+    setShowConfirmStep(false);
+    setProductForm({
+      name: '', code: '', category: '', unit: 'KG', safetyStock: 0, minStock: 0, 
+      monthlyConsumption: 0, currentStock: 0, costPrice: 0, salePrice: 0
+    });
+  };
+
+  const openTransactionModal = (product: Product, type: TransactionType) => {
+    setSelectedProduct(product);
+    setModalType(type);
+    setTransactionCost(product.costPrice);
+  };
+
+  const openEditModal = (product: Product) => {
+    setSelectedProduct(product);
+    setProductForm({ ...product });
+    setModalType('edit');
+  };
+
   const handleBulkZeroStock = () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Zerar o estoque de ${selectedIds.size} itens selecionados?`)) return;
-
-    const timestamp = new Date().toISOString();
-    const newTransactions: Transaction[] = [];
-    
+    if (!confirm(`Zerar o estoque de ${selectedIds.size} itens?`)) return;
     const updatedProducts = products.map(p => {
-      if (selectedIds.has(p.id)) {
-        if (p.currentStock > 0) {
-          newTransactions.push({
-            id: crypto.randomUUID(),
-            productId: p.id,
-            productName: p.name,
-            type: TransactionType.ADJUSTMENT,
-            quantity: 0,
-            unitCost: p.costPrice,
-            date: timestamp,
-            notes: 'Ajuste em massa: Zerar estoque'
-          });
-        }
-        return { ...p, previousStock: p.currentStock, currentStock: 0 };
-      }
+      if (selectedIds.has(p.id)) return { ...p, currentStock: 0 };
       return p;
     });
-
-    setTransactions([...newTransactions, ...transactions]);
     setProducts(updatedProducts);
     setSelectedIds(new Set());
     setShowBulkMenu(false);
@@ -270,49 +337,16 @@ const App: React.FC = () => {
     setShowBulkMenu(false);
   };
 
-  const confirmBulkAdd = () => {
-    if (quantity <= 0) return;
-    const timestamp = new Date().toISOString();
-    const newTransactions: Transaction[] = [];
-
-    const updatedProducts = products.map(p => {
-      if (selectedIds.has(p.id)) {
-        newTransactions.push({
-          id: crypto.randomUUID(),
-          productId: p.id,
-          productName: p.name,
-          type: TransactionType.ENTRY,
-          quantity: quantity,
-          unitCost: p.costPrice,
-          date: timestamp,
-          notes: `Entrada em massa: +${quantity} unidades`
-        });
-        return { ...p, previousStock: p.currentStock, currentStock: p.currentStock + quantity };
-      }
-      return p;
-    });
-
-    setTransactions([...newTransactions, ...transactions]);
-    setProducts(updatedProducts);
-    setSelectedIds(new Set());
-    closeModal();
-  };
-
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Excluir permanentemente os ${selectedIds.size} itens selecionados?`)) return;
-    
+    if (!confirm(`Excluir ${selectedIds.size} itens?`)) return;
     setProducts(products.filter(p => !selectedIds.has(p.id)));
     setSelectedIds(new Set());
     setShowBulkMenu(false);
   };
 
   const handleSaveProduct = () => {
-    if (!productForm.name || !productForm.category) {
-      alert("Por favor, preencha o nome e a categoria.");
-      return;
-    }
-
+    if (!productForm.name || !productForm.category) return;
     const timestamp = new Date().toISOString();
 
     if (modalType === 'edit' && selectedProduct) {
@@ -349,36 +383,9 @@ const App: React.FC = () => {
     closeModal();
   };
 
-  const closeModal = () => {
-    setSelectedProduct(null);
-    setProductToDelete(null);
-    setProductForAnalysis(null);
-    setModalType(null);
-    setQuantity(0);
-    setTransactionCost(0);
-    setNotes('');
-    setShowConfirmStep(false);
-    setProductForm({
-      name: '', code: '', category: '', unit: 'KG', safetyStock: 0, minStock: 0, 
-      monthlyConsumption: 0, currentStock: 0, costPrice: 0, salePrice: 0
-    });
-  };
-
-  const openTransactionModal = (product: Product, type: TransactionType) => {
-    setSelectedProduct(product);
-    setModalType(type);
-    setTransactionCost(product.costPrice);
-  };
-
-  const openEditModal = (product: Product) => {
-    setSelectedProduct(product);
-    setProductForm({ ...product });
-    setModalType('edit');
-  };
-
   return (
     <div className="min-h-screen pb-20 md:pb-0 md:pl-64 bg-slate-50/50 text-slate-900">
-      {/* Sidebar - Desktop */}
+      {/* Sidebar */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-3 z-40 md:top-0 md:bottom-auto md:left-0 md:w-64 md:h-screen md:flex-col md:justify-start md:p-6 md:border-r md:border-t-0 shadow-xl md:shadow-none">
         <div className="hidden md:flex items-center gap-3 mb-10 text-indigo-600 font-bold text-xl px-2">
           <div className="bg-indigo-600 text-white p-2 rounded-xl"><PackageIcon /></div>
@@ -386,55 +393,38 @@ const App: React.FC = () => {
         </div>
         
         <div className="flex w-full justify-around md:flex-col md:gap-2">
-          <button onClick={() => setCurrentView('inventory')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'inventory' ? 'text-indigo-600 md:bg-indigo-50 font-bold scale-105 md:scale-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}>
+          <button onClick={() => setCurrentView('inventory')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'inventory' ? 'text-indigo-600 md:bg-indigo-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
             <PackageIcon /> <span className="text-[10px] md:text-base">Estoque</span>
           </button>
-          <button onClick={() => setCurrentView('history')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'history' ? 'text-indigo-600 md:bg-indigo-50 font-bold scale-105 md:scale-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}>
+          <button onClick={() => setCurrentView('history')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'history' ? 'text-indigo-600 md:bg-indigo-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
             <HistoryIcon /> <span className="text-[10px] md:text-base">Histórico</span>
           </button>
-          <button onClick={() => setCurrentView('stats')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'stats' ? 'text-indigo-600 md:bg-indigo-50 font-bold scale-105 md:scale-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}>
+          <button onClick={() => setCurrentView('stats')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'stats' ? 'text-indigo-600 md:bg-indigo-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
             <StatsIcon /> <span className="text-[10px] md:text-base">Painel</span>
+          </button>
+          <button onClick={() => setCurrentView('ai')} className={`flex flex-col md:flex-row items-center gap-2 p-3 rounded-xl transition-all ${currentView === 'ai' ? 'text-purple-600 md:bg-purple-50 font-bold' : 'text-slate-400 hover:text-slate-600'}`}>
+            <BrainIcon /> <span className="text-[10px] md:text-base">Analista IA</span>
           </button>
         </div>
       </nav>
 
       {/* Header */}
       <header className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-slate-200 p-4 z-30 flex flex-col md:flex-row justify-between items-center gap-4 md:px-8 md:py-6">
-        <div className="w-full md:w-auto flex items-center gap-4">
-          {currentView === 'inventory' && (
-            <button 
-              onClick={selectAll} 
-              className={`p-2 rounded-xl transition-all border-2 ${selectedIds.size === processedProducts.length && processedProducts.length > 0 ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-indigo-200'}`}
-              title="Selecionar Todos"
-            >
-              <SortIcon />
-            </button>
-          )}
-          <div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">
-              {currentView === 'inventory' ? 'Inventário' : currentView === 'history' ? 'Histórico' : 'Dashboard'}
-            </h1>
-            <p className="text-xs text-slate-400 font-medium">Gestão inteligente de insumos</p>
-          </div>
-        </div>
+        <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight uppercase">
+          {currentView === 'inventory' ? 'Inventário' : currentView === 'history' ? 'Histórico' : currentView === 'ai' ? 'Analista IA (Thinking Mode)' : 'Dashboard'}
+        </h1>
         
         <div className="flex flex-wrap items-center gap-2 md:gap-4 w-full md:w-auto">
           {currentView === 'inventory' && (
             <>
-              <div className="relative flex-1 md:w-64">
-                <input type="text" placeholder="Buscar material..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-100 border-none rounded-2xl py-2.5 px-5 text-sm focus:ring-2 focus:ring-indigo-500 transition-all outline-none" />
-              </div>
+              <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="flex-1 md:w-64 bg-slate-100 border-none rounded-2xl py-2 px-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
               <CategoryFilter categories={categories} selected={selectedCategory} onSelect={setSelectedCategory} />
-              <button onClick={() => setModalType('add')} className="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl text-xs font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-100">
-                <PlusIcon /> Novo Item
+              <button onClick={() => setModalType('add')} className="bg-indigo-600 text-white px-4 py-2 rounded-2xl text-xs font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-100">
+                <PlusIcon /> Novo
               </button>
             </>
           )}
-          <button 
-            onClick={() => exportService.exportToExcel(products, transactions)} 
-            className="p-2.5 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
-            title="Exportar Excel Completo"
-          >
+          <button onClick={() => exportService.exportToExcel(products, transactions)} className="p-2.5 bg-emerald-600 text-white rounded-2xl shadow-lg">
             <DownloadIcon />
           </button>
         </div>
@@ -448,14 +438,12 @@ const App: React.FC = () => {
               const isOutOfStock = product.currentStock === 0;
               const isRed = product.currentStock <= product.minStock;
               const isYellow = !isRed && product.currentStock <= product.minStock * 1.5;
-              
               const isSelected = selectedIds.has(product.id);
               const history = product.costHistory || [];
-
+              const isHistoryExpanded = expandedHistoryIds.has(product.id);
               const autonomyDays = product.monthlyConsumption > 0 
                 ? Math.floor((product.currentStock / product.monthlyConsumption) * 30) 
                 : null;
-
               const isCostUp = product.previousCostPrice !== undefined && product.costPrice > product.previousCostPrice;
 
               return (
@@ -472,40 +460,28 @@ const App: React.FC = () => {
                     {isOutOfStock ? (
                       <span className="bg-slate-900 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase flex items-center gap-1"><OutOfStockIcon /> Esgotado</span>
                     ) : isRed && (
-                      <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase flex items-center gap-1 animate-pulse">
-                        <AlertTriangleIcon /> 
-                        Crítico 
-                        {autonomyDays !== null && (
-                          <span className="ml-1 opacity-90 border-l border-white/20 pl-1.5 flex items-center gap-1">
-                             <CalendarIcon /> {autonomyDays} dias
-                          </span>
-                        )}
-                      </span>
+                      <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase flex items-center gap-1 animate-pulse"><AlertTriangleIcon /> Crítico</span>
                     )}
                     <span className="text-[9px] font-black text-slate-400 px-3 py-1.5 bg-slate-100 rounded-full uppercase">COD: {product.code}</span>
                   </div>
 
-                  <div className="flex items-start gap-2.5 mb-2">
-                    <div className={`mt-2 w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm border border-white/20 ${isRed ? 'bg-red-500 animate-pulse' : isYellow ? 'bg-amber-400' : 'bg-emerald-500'}`} title={isRed ? 'Estoque Crítico' : isYellow ? 'Atenção: Nível Baixo' : 'Estoque Estável'}></div>
-                    <h3 className="font-bold text-slate-800 text-xl leading-tight h-14 line-clamp-2">{product.name}</h3>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div 
+                      className={`w-4 h-4 rounded-full flex-shrink-0 shadow-sm border border-white/20 ${isRed ? 'bg-red-500 animate-pulse' : isYellow ? 'bg-amber-400' : 'bg-emerald-500'}`} 
+                      title={isRed ? 'Status Crítico' : isYellow ? 'Atenção Necessária' : 'Status Estável'}
+                    ></div>
+                    <h3 className="font-bold text-slate-800 text-xl leading-tight h-14 line-clamp-2 flex-1">{product.name}</h3>
                   </div>
                   <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-6">{product.category}</p>
 
                   <div className="grid grid-cols-2 gap-4 border-t border-slate-50 pt-6 mb-6">
-                    <div className="relative group/cost">
+                    <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Custo Unitário</p>
                       <div className="flex items-center gap-1.5">
-                        <p 
-                          key={product.costPrice} 
-                          className={`font-black text-base transition-all duration-500 ${isCostUp ? 'animate-cost-bounce animate-cost-up-glow' : 'text-slate-700'}`}
-                        >
+                        <p className={`font-black text-base transition-all duration-500 ${isCostUp ? 'text-red-500 animate-bounce' : 'text-slate-700'}`}>
                           {currencyFormatter.format(product.costPrice)}
                         </p>
-                        {isCostUp && (
-                          <span className="text-red-500 animate-bounce scale-75" title="Aumento de custo detectado!">
-                            <TrendingUpIcon />
-                          </span>
-                        )}
+                        {isCostUp && <TrendingUpIcon />}
                       </div>
                     </div>
                     <div className="text-right">
@@ -514,72 +490,56 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="mb-6 space-y-3">
-                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Estoque Atual</p>
-                      <div className="flex items-baseline gap-1">
-                        <span className={`text-3xl font-black tabular-nums ${isOutOfStock ? 'text-slate-900' : isRed ? 'text-red-600' : isYellow ? 'text-amber-600' : 'text-emerald-600'}`}>{product.currentStock}</span>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">{product.unit}</span>
-                      </div>
+                  {/* SEÇÃO: AUTONOMIA EM DIAS */}
+                  <div className={`p-4 rounded-2xl border transition-all duration-300 mb-6 flex items-center justify-between ${autonomyDays !== null && autonomyDays <= 10 ? 'bg-red-50 border-red-100 text-red-600' : 'bg-indigo-50/30 border-indigo-100/50 text-indigo-600'}`}>
+                    <div className="flex items-center gap-2">
+                      <div className="opacity-80 scale-90"><CalendarIcon /></div>
+                      <span className="text-[10px] font-black uppercase tracking-tight">Autonomia em Dias</span>
                     </div>
-                    
-                    <div className={`flex justify-between items-center p-3 px-4 rounded-xl border transition-all duration-500 ${autonomyDays !== null && autonomyDays < 10 ? 'bg-red-50 border-red-200 text-red-700 shadow-sm' : 'bg-indigo-50/30 border-indigo-100/50 text-indigo-400'}`}>
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon />
-                        <p className="text-[9px] font-black uppercase tracking-tight">Tempo de Autonomia</p>
-                      </div>
-                      <span className={`text-xs font-black px-2 py-0.5 rounded-lg shadow-sm ${autonomyDays !== null && autonomyDays < 10 ? 'bg-red-600 text-white' : 'bg-white text-indigo-600'}`}>
-                        {autonomyDays !== null ? `${Math.floor(autonomyDays)} dias` : 'Indeterminado'}
+                    <span className="text-xl font-black tabular-nums">{autonomyDays !== null ? `${Math.floor(autonomyDays)}` : '--'}</span>
+                  </div>
+
+                  {/* SEÇÃO: HISTÓRICO DE CUSTOS (Expansível) */}
+                  <div 
+                    onClick={(e) => toggleExpandHistory(e, product.id)}
+                    className="bg-slate-50/50 rounded-3xl p-5 mb-0 border border-slate-100/50 hover:bg-slate-100/80 transition-all group-hover:opacity-40"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-2">
+                        <HistoryIcon /> Histórico de Custos
+                      </p>
+                      <span className={`text-slate-300 transition-transform duration-300 ${isHistoryExpanded ? 'rotate-180' : ''}`}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                       </span>
+                    </div>
+                    <div className={`space-y-2.5 overflow-hidden transition-all duration-300 ${isHistoryExpanded ? 'max-h-48' : 'max-h-24'}`}>
+                      {history.length > 0 ? history.slice(0, isHistoryExpanded ? 5 : 3).map((h, i) => (
+                        <div key={i} className="flex justify-between items-center text-[10px] animate-in fade-in slide-in-from-top-1">
+                          <span className="text-slate-500 font-bold">{new Date(h.date).toLocaleDateString('pt-BR')}</span>
+                          <span className="text-slate-800 font-black">{currencyFormatter.format(h.price)}</span>
+                        </div>
+                      )) : (
+                        <p className="text-[10px] text-slate-400 italic">Sem registros anteriores</p>
+                      )}
+                      {!isHistoryExpanded && history.length > 3 && (
+                        <p className="text-[9px] text-indigo-500 font-black text-center mt-2 uppercase tracking-tight">Clique para ver mais (+{history.length - 3})</p>
+                      )}
                     </div>
                   </div>
 
-                  {history.length > 0 && (
-                    <div className="bg-slate-50/50 rounded-3xl p-5 mb-0 border border-slate-100/50 transition-all group-hover:opacity-40">
-                      <p className="text-[9px] font-black text-slate-400 uppercase mb-3 flex items-center gap-2">
-                        <HistoryIcon /> Evolução de Preços
-                      </p>
-                      <div className="space-y-2.5">
-                        {history.slice(0, 3).map((h, i) => {
-                          const nextPrice = history[i + 1]?.price;
-                          const hasChanged = nextPrice !== undefined;
-                          const isUp = hasChanged && h.price > nextPrice;
-                          const isDown = hasChanged && h.price < nextPrice;
-
-                          return (
-                            <div key={i} className="flex justify-between items-center">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-slate-500">
-                                  {new Date(h.date).toLocaleDateString('pt-BR')}
-                                </span>
-                                {isUp && <span className="text-red-500 scale-75"><TrendingUpIcon /></span>}
-                                {isDown && <span className="text-emerald-500 scale-75 rotate-180"><TrendingUpIcon /></span>}
-                              </div>
-                              <span className="text-[10px] font-black text-slate-700">
-                                {currencyFormatter.format(h.price)}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Ações Rápidas (Overlay no Hover) */}
                   {!isSelected && (
-                    <div 
-                      onClick={e => e.stopPropagation()}
-                      className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out flex gap-3 border-t border-slate-100 shadow-inner rounded-t-[32px]"
-                    >
-                       <button onClick={() => openTransactionModal(product, TransactionType.ENTRY)} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-tight" title="Entrada">
-                         <PlusIcon /> Entrada
-                       </button>
-                       <button onClick={() => openTransactionModal(product, TransactionType.EXIT)} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-tight" title="Saída">
-                         <MinusIcon /> Consumo
-                       </button>
-                       <button onClick={() => openEditModal(product)} className="w-14 bg-slate-100 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-2xl transition-all active:scale-95 border border-transparent hover:border-indigo-100 flex items-center justify-center" title="Editar">
-                         <EditIcon />
-                       </button>
+                    <div onClick={e => e.stopPropagation()} className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out border-t border-slate-100 shadow-inner rounded-t-[32px] flex flex-col gap-3">
+                       {/* Ações Primárias */}
+                       <div className="flex gap-3">
+                          <button onClick={() => openTransactionModal(product, TransactionType.ENTRY)} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-tight" title="Entrada"><PlusIcon /> Entrada</button>
+                          <button onClick={() => openTransactionModal(product, TransactionType.EXIT)} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-tight" title="Consumo"><MinusIcon /> Consumo</button>
+                       </div>
+                       {/* Ações Secundárias Expandidas */}
+                       <div className="flex gap-2 justify-between">
+                          <button onClick={() => openEditModal(product)} className="flex-1 bg-slate-100 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[9px] font-black uppercase" title="Editar"><EditIcon /> Editar</button>
+                          <button onClick={(e) => handleDuplicateProduct(e, product)} className="flex-1 bg-slate-100 hover:bg-blue-50 text-slate-400 hover:text-blue-600 py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[9px] font-black uppercase" title="Duplicar"><CopyIcon /> Clonar</button>
+                          <button onClick={(e) => handleProductReport(e, product)} className="flex-1 bg-slate-100 hover:bg-amber-50 text-slate-400 hover:text-amber-600 py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[9px] font-black uppercase" title="Relatório"><FileTextIcon /> PDF</button>
+                       </div>
                     </div>
                   )}
                 </div>
@@ -588,110 +548,99 @@ const App: React.FC = () => {
           </div>
         ) : currentView === 'history' ? (
           <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center">
-              <h2 className="text-2xl font-black text-slate-800">Últimas Movimentações</h2>
-              <button 
-                onClick={() => exportService.exportToExcel(products, transactions)}
-                className="flex items-center gap-2 text-indigo-600 font-bold hover:underline"
-              >
-                <DownloadIcon /> Exportar Excel
-              </button>
-            </div>
+            <div className="p-8 border-b border-slate-50 flex justify-between items-center"><h2 className="text-2xl font-black uppercase tracking-tighter">Histórico de Movimentações</h2></div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  <tr>
-                    <th className="px-8 py-5">Data</th>
-                    <th className="px-8 py-5">Produto</th>
-                    <th className="px-8 py-5">Tipo</th>
-                    <th className="px-8 py-5 text-right">Quantidade</th>
-                    <th className="px-8 py-5 text-right">Custo Unit.</th>
-                    <th className="px-8 py-5">Observações</th>
-                  </tr>
+                  <tr><th className="px-8 py-5">Data</th><th className="px-8 py-5">Produto</th><th className="px-8 py-5">Tipo</th><th className="px-8 py-5 text-right">Quantidade</th><th className="px-8 py-5 text-right">Custo Unit.</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {transactions.map(t => (
-                    <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-8 py-5 text-xs text-slate-500 font-bold">{new Date(t.date).toLocaleString('pt-BR')}</td>
-                      <td className="px-8 py-5 text-xs text-slate-800 font-black">{t.productName}</td>
-                      <td className="px-8 py-5">
-                        <span className={`text-[9px] font-black px-3 py-1.5 rounded-full uppercase ${t.type === TransactionType.ENTRY ? 'bg-emerald-50 text-emerald-600' : t.type === TransactionType.EXIT ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-600'}`}>
-                          {t.type}
-                        </span>
-                      </td>
-                      <td className="px-8 py-5 text-xs text-slate-800 font-black text-right tabular-nums">{t.quantity}</td>
-                      <td className="px-8 py-5 text-xs text-slate-800 font-black text-right tabular-nums">{currencyFormatter.format(t.unitCost || 0)}</td>
-                      <td className="px-8 py-5 text-[11px] text-slate-400 italic max-w-xs truncate">{t.notes}</td>
+                    <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-8 py-5 text-xs font-bold text-slate-500">{new Date(t.date).toLocaleString('pt-BR')}</td>
+                      <td className="px-8 py-5 text-xs font-black">{t.productName}</td>
+                      <td className="px-8 py-5"><span className={`text-[9px] font-black px-3 py-1.5 rounded-full uppercase ${t.type === TransactionType.ENTRY ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>{t.type}</span></td>
+                      <td className="px-8 py-5 text-xs font-black text-right tabular-nums">{t.quantity}</td>
+                      <td className="px-8 py-5 text-xs font-black text-right tabular-nums">{currencyFormatter.format(t.unitCost || 0)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        ) : currentView === 'stats' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total em Estoque</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Custo</p>
               <h4 className="text-3xl font-black text-indigo-600">{stats.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
-              <p className="text-xs text-slate-400 mt-2 font-bold">{stats.totalItems} unidades totais</p>
             </div>
             <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor de Venda</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor Venda</p>
               <h4 className="text-3xl font-black text-emerald-600">{stats.totalSaleValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
-              <p className="text-xs text-slate-400 mt-2 font-bold">Expectativa de faturamento</p>
             </div>
             <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Itens Críticos</p>
-              <h4 className={`text-3xl font-black ${stats.criticalCount > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{stats.criticalCount}</h4>
-              <p className="text-xs text-slate-400 mt-2 font-bold">Produtos abaixo do mínimo</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Críticos</p>
+              <h4 className="text-3xl font-black text-red-600">{stats.criticalCount}</h4>
             </div>
             <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total de SKUs</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">SKUs</p>
               <h4 className="text-3xl font-black text-slate-800">{stats.uniqueItemsCount}</h4>
-              <p className="text-xs text-slate-400 mt-2 font-bold">Itens cadastrados</p>
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white rounded-[48px] shadow-2xl border border-slate-100 p-8 md:p-12">
+               <div className="flex items-center gap-6 mb-12">
+                  <div className="w-16 h-16 bg-purple-100 rounded-3xl flex items-center justify-center text-purple-600">
+                    <BrainIcon />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-black tracking-tighter">Analista Estratégico IA</h2>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Gemini 3 Pro + Thinking Mode</p>
+                  </div>
+               </div>
+
+               <form onSubmit={handleAskAI} className="relative mb-12">
+                  <textarea 
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="Quais insumos estão com estoque crítico para as próximas semanas?"
+                    className="w-full bg-slate-50 border-none rounded-[32px] p-8 pb-20 text-xl font-medium focus:ring-4 focus:ring-purple-200 outline-none min-h-[160px] resize-none"
+                  />
+                  <button type="submit" disabled={aiLoading} className="absolute bottom-6 right-6 bg-purple-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-sm tracking-widest shadow-xl active:scale-95 transition-all">
+                    {aiLoading ? "Pensando..." : "Consultar Analista"}
+                  </button>
+               </form>
+
+               {aiLoading && (
+                 <div className="p-8 bg-purple-50 rounded-[32px] animate-pulse">
+                    <div className="h-4 bg-purple-200 rounded w-3/4 mb-4"></div>
+                    <div className="h-4 bg-purple-200 rounded w-full mb-4"></div>
+                    <p className="text-purple-600 font-bold text-xs uppercase text-center pt-2">Processando análise preditiva de estoque...</p>
+                 </div>
+               )}
+
+               {aiResponse && !aiLoading && (
+                 <div className="p-10 bg-slate-50 rounded-[48px] border border-slate-100 prose prose-slate max-w-none shadow-inner leading-relaxed whitespace-pre-wrap font-medium text-lg">
+                    <div className="flex items-center gap-2 mb-6 text-purple-600 font-black uppercase text-xs tracking-widest"><BrainIcon /> Insights Estratégicos</div>
+                    {aiResponse}
+                 </div>
+               )}
             </div>
           </div>
         )}
 
-        {/* Floating Bulk Actions Bar */}
+        {/* Floating Bulk Menu */}
         {selectedIds.size > 0 && currentView === 'inventory' && (
-          <div className="fixed bottom-8 left-4 right-4 md:left-[calc(50%+128px)] md:right-auto md:-translate-x-1/2 bg-slate-900 text-white px-8 py-5 rounded-[32px] shadow-2xl z-50 flex flex-wrap items-center justify-between gap-6 animate-in slide-in-from-bottom-8 duration-300 border border-white/10 backdrop-blur-2xl">
-             <div className="flex flex-col">
-                <span className="text-sm font-black text-indigo-400 uppercase tracking-tighter">{selectedIds.size} materiais selecionados</span>
-                <button onClick={() => {setSelectedIds(new Set()); setShowBulkMenu(false);}} className="text-[10px] font-bold text-slate-500 hover:text-white transition-colors uppercase text-left">Desmarcar tudo</button>
-             </div>
-             
+          <div className="fixed bottom-8 left-4 right-4 md:left-[calc(50%+128px)] md:right-auto md:-translate-x-1/2 bg-slate-900 text-white px-8 py-5 rounded-[32px] shadow-2xl z-50 flex items-center justify-between gap-6">
+             <span className="text-sm font-black text-indigo-400 uppercase">{selectedIds.size} selecionados</span>
              <div className="relative">
-                <button 
-                  onClick={() => setShowBulkMenu(!showBulkMenu)}
-                  className={`flex items-center gap-3 px-8 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-xl ${showBulkMenu ? 'bg-white text-slate-900' : 'bg-indigo-600 text-white'}`}
-                >
-                  <SortIcon /> Ações em Massa
-                </button>
-
+                <button onClick={() => setShowBulkMenu(!showBulkMenu)} className="bg-indigo-600 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all">Ações em Massa</button>
                 {showBulkMenu && (
-                  <div className="absolute bottom-full right-0 mb-4 w-64 bg-slate-800 border border-white/5 rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in slide-in-from-bottom-4 duration-200 backdrop-blur-xl">
-                    <button 
-                      onClick={handleBulkZeroStock}
-                      className="w-full flex items-center gap-4 px-6 py-5 text-left hover:bg-white/5 transition-colors border-b border-white/5 text-[11px] font-black uppercase tracking-tight text-slate-300 hover:text-white"
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-slate-700 flex items-center justify-center text-slate-400"><OutOfStockIcon /></div>
-                      Zerar Estoque
-                    </button>
-                    <button 
-                      onClick={handleBulkAddStock}
-                      className="w-full flex items-center gap-4 px-6 py-5 text-left hover:bg-white/5 transition-colors border-b border-white/5 text-[11px] font-black uppercase tracking-tight text-indigo-400 hover:text-indigo-300"
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400"><PlusIcon /></div>
-                      Adicionar Qtd Padrão
-                    </button>
-                    <button 
-                      onClick={handleBulkDelete}
-                      className="w-full flex items-center gap-4 px-6 py-5 text-left hover:bg-red-600 transition-colors text-[11px] font-black uppercase tracking-tight text-red-400 hover:text-white"
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center text-red-400 group-hover:bg-transparent"><TrashIcon /></div>
-                      Excluir Selecionados
-                    </button>
+                  <div className="absolute bottom-full right-0 mb-4 w-48 bg-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+                    <button onClick={handleBulkZeroStock} className="w-full p-4 text-left hover:bg-white/5 border-b border-white/5 text-[10px] font-black uppercase">Zerar Estoque</button>
+                    <button onClick={handleBulkAddStock} className="w-full p-4 text-left hover:bg-white/5 border-b border-white/5 text-[10px] font-black uppercase">Adicionar Entrada</button>
+                    <button onClick={handleBulkDelete} className="w-full p-4 text-left hover:bg-red-600 text-[10px] font-black uppercase">Excluir Itens</button>
                   </div>
                 )}
              </div>
@@ -699,147 +648,48 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Modal Quantidade em Massa */}
-      {modalType === 'bulkAdd' && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[60] flex items-center justify-center p-6">
-           <div className="bg-white rounded-[48px] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-300">
-             <h2 className="text-3xl font-black text-slate-800 mb-4 tracking-tighter">Entrada Padrão</h2>
-             <p className="text-slate-500 text-sm mb-8 font-medium">Defina a quantidade que será adicionada a cada um dos <b>{selectedIds.size}</b> itens.</p>
-             
-             <div className="space-y-8">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-3 ml-1 tracking-widest">Quantidade Adicional</label>
-                  <input type="number" autoFocus value={quantity || ''} onChange={(e) => setQuantity(Math.max(0, parseFloat(e.target.value) || 0))} className="w-full border-none bg-slate-50 rounded-[24px] p-7 focus:ring-2 focus:ring-indigo-500 outline-none text-4xl font-black text-indigo-600 placeholder:text-slate-200" placeholder="0" />
-                </div>
-                
-                <div className="flex gap-4">
-                   <button onClick={closeModal} className="flex-1 bg-slate-100 text-slate-500 font-black py-5 rounded-[24px] hover:bg-slate-200 transition-all">Cancelar</button>
-                   <button onClick={confirmBulkAdd} disabled={quantity <= 0} className="flex-1 bg-indigo-600 text-white font-black py-5 rounded-[24px] shadow-2xl shadow-indigo-100 disabled:opacity-50 transition-all active:scale-95">Aplicar em Lote</button>
-                </div>
-             </div>
-           </div>
-        </div>
-      )}
-
-      {/* MODAL ADICIONAR/EDITAR PRODUTO */}
-      {(modalType === 'add' || modalType === 'edit') && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-3xl p-10 shadow-2xl overflow-y-auto max-h-[90vh] animate-in zoom-in duration-300">
-            <div className="flex justify-between items-center mb-8">
-                <h2 className="text-3xl font-black text-slate-800 tracking-tighter">{modalType === 'edit' ? 'Editar Cadastro' : 'Novo Material'}</h2>
-                <button onClick={closeModal} className="w-12 h-12 bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-2xl flex items-center justify-center transition-all">✕</button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="md:col-span-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Nome Completo do Material</label>
-                <input type="text" placeholder="Ex: AÇAFRÃO RAIZ 25KG" value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} className="w-full bg-slate-50 border-none p-5 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">COD Sistema / Referência</label>
-                <input type="text" placeholder="2170" value={productForm.code} onChange={e => setProductForm({...productForm, code: e.target.value})} className="w-full bg-slate-50 border-none p-5 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Categoria de Insumo</label>
-                <input type="text" placeholder="Especiarias" value={productForm.category} onChange={e => setProductForm({...productForm, category: e.target.value})} className="w-full bg-slate-50 border-none p-5 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Preço de Custo (Unitário)</label>
-                <input type="number" step="0.01" value={productForm.costPrice} onChange={e => setProductForm({...productForm, costPrice: parseFloat(e.target.value)})} className="w-full bg-slate-50 border-none p-5 rounded-2xl font-black text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2 block">Preço de Venda (Unitário)</label>
-                <input type="number" step="0.01" value={productForm.salePrice} onChange={e => setProductForm({...productForm, salePrice: parseFloat(e.target.value)})} className="w-full bg-emerald-50 border-none p-5 rounded-2xl font-black text-emerald-700 focus:ring-2 focus:ring-emerald-500 outline-none" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Unidade de Medida</label>
-                <select value={productForm.unit} onChange={e => setProductForm({...productForm, unit: e.target.value})} className="w-full bg-slate-50 border-none p-5 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
-                  <option value="KG">KG</option>
-                  <option value="SC">Saco (SC)</option>
-                  <option value="BB">Bombona (BB)</option>
-                  <option value="CX">Caixa (CX)</option>
-                  <option value="FD">Fardo (FD)</option>
-                  <option value="L">Litro (L)</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Estoque Mínimo (Alerta)</label>
-                <input type="number" value={productForm.minStock} onChange={e => setProductForm({...productForm, minStock: parseFloat(e.target.value)})} className="w-full bg-slate-50 border-none p-5 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Estoque de Segurança</label>
-                <input type="number" value={productForm.safetyStock} onChange={e => setProductForm({...productForm, safetyStock: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 border-none p-5 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Consumo Mensal Estimado</label>
-                <input type="number" value={productForm.monthlyConsumption} onChange={e => setProductForm({...productForm, monthlyConsumption: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 border-none p-5 rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-            </div>
-            
-            <button onClick={handleSaveProduct} className="w-full bg-indigo-600 text-white font-black py-6 rounded-[24px] mt-10 shadow-2xl shadow-indigo-100 hover:bg-indigo-700 active:scale-[0.98] transition-all">
-               {modalType === 'edit' ? 'Salvar Alterações' : 'Cadastrar Material'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {selectedProduct && modalType && ['ENTRADA', 'SAÍDA', 'AJUSTE'].includes(modalType) && (
+      {/* Transaction Modal */}
+      {selectedProduct && modalType && ['ENTRADA', 'SAÍDA', 'AJUSTE', 'bulkAdd'].includes(modalType) && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
            <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in duration-300">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">{modalType}: {selectedProduct.name}</h2>
-                  <p className="text-xs text-slate-400 font-bold uppercase mt-1">Ref: {selectedProduct.code}</p>
-                </div>
-                <button onClick={closeModal} className="text-slate-300 hover:text-slate-500 transition-colors">✕</button>
-              </div>
-              
+              <h2 className="text-2xl font-black mb-6 uppercase tracking-tighter">{modalType}: {selectedProduct.name}</h2>
               <div className="space-y-6">
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Quantidade ({selectedProduct.unit})</label>
-                    <input 
-                      type="number" 
-                      autoFocus 
-                      value={quantity || ''} 
-                      onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)} 
-                      className="w-full bg-slate-50 p-5 rounded-2xl text-2xl font-black text-indigo-600 border-none focus:ring-2 focus:ring-indigo-500 outline-none" 
-                      placeholder="0" 
-                    />
+                    <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Quantidade ({selectedProduct.unit})</label>
+                    <input type="number" autoFocus value={quantity || ''} onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)} className="w-full bg-slate-50 p-5 rounded-2xl text-2xl font-black text-indigo-600 outline-none" />
                   </div>
-
                   {(modalType === TransactionType.ENTRY || modalType === TransactionType.ADJUSTMENT) && (
                     <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Custo Unitário da Operação (R$)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={transactionCost || ''} 
-                        onChange={(e) => setTransactionCost(parseFloat(e.target.value) || 0)} 
-                        className="w-full bg-slate-50 p-5 rounded-2xl text-xl font-black text-amber-600 border-none focus:ring-2 focus:ring-amber-500 outline-none" 
-                        placeholder="0.00" 
-                      />
+                      <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Custo Unitário (R$)</label>
+                      <input type="number" step="0.01" value={transactionCost || ''} onChange={(e) => setTransactionCost(parseFloat(e.target.value) || 0)} className="w-full bg-slate-50 p-5 rounded-2xl text-xl font-black text-amber-600 outline-none" />
                     </div>
                   )}
-
-                  {showConfirmStep && modalType === TransactionType.EXIT && (
-                    <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-                      <div className="text-amber-500 mt-0.5"><AlertTriangleIcon /></div>
-                      <p className="text-xs text-amber-700 font-medium">Você está registrando uma saída de estoque. Confirma a operação?</p>
-                    </div>
-                  )}
-
                   <div className="flex gap-4 pt-2">
-                    <button onClick={closeModal} className="flex-1 bg-slate-100 text-slate-500 font-black py-4 rounded-2xl hover:bg-slate-200 transition-all">Cancelar</button>
-                    <button 
-                      onClick={handleTransaction} 
-                      disabled={quantity <= 0}
-                      className={`flex-1 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 disabled:opacity-50 ${modalType === TransactionType.ENTRY ? 'bg-emerald-600 hover:bg-emerald-700' : modalType === TransactionType.EXIT ? 'bg-slate-900 hover:bg-slate-800' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                    >
-                      {showConfirmStep ? 'Confirmar Saída' : 'Registrar'}
-                    </button>
+                    <button onClick={closeModal} className="flex-1 bg-slate-100 text-slate-500 font-black py-4 rounded-2xl">Cancelar</button>
+                    <button onClick={handleTransaction} disabled={quantity <= 0} className="flex-1 bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-xl active:scale-95 transition-all">Confirmar</button>
                   </div>
               </div>
            </div>
+        </div>
+      )}
+
+      {(modalType === 'add' || modalType === 'edit') && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] w-full max-w-3xl p-10 shadow-2xl overflow-y-auto max-h-[90vh] animate-in zoom-in">
+            <h2 className="text-3xl font-black mb-8 tracking-tighter">{modalType === 'edit' ? 'Editar Cadastro' : 'Novo Material'}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="md:col-span-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Nome Comercial</label>
+                <input type="text" value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none" />
+              </div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Código</label><input type="text" value={productForm.code} onChange={e => setProductForm({...productForm, code: e.target.value})} className="w-full bg-slate-50 p-5 rounded-2xl outline-none" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Categoria</label><input type="text" value={productForm.category} onChange={e => setProductForm({...productForm, category: e.target.value})} className="w-full bg-slate-50 p-5 rounded-2xl outline-none" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Custo Unitário</label><input type="number" step="0.01" value={productForm.costPrice} onChange={e => setProductForm({...productForm, costPrice: parseFloat(e.target.value)})} className="w-full bg-slate-50 p-5 rounded-2xl font-black text-indigo-600 outline-none" /></div>
+              <div><label className="text-[10px] font-black text-emerald-600 uppercase mb-2 block">Venda Unitário</label><input type="number" step="0.01" value={productForm.salePrice} onChange={e => setProductForm({...productForm, salePrice: parseFloat(e.target.value)})} className="w-full bg-emerald-50 p-5 rounded-2xl font-black text-emerald-700 outline-none" /></div>
+            </div>
+            <button onClick={handleSaveProduct} className="w-full bg-indigo-600 text-white font-black py-6 rounded-[24px] mt-10 shadow-xl active:scale-[0.98] transition-all">Salvar Dados</button>
+            <button onClick={closeModal} className="w-full text-slate-400 font-bold py-4 mt-2">Cancelar Operação</button>
+          </div>
         </div>
       )}
     </div>

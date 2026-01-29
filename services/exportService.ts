@@ -1,4 +1,3 @@
-
 import { Product, Transaction } from '../types.ts';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -23,12 +22,14 @@ export const exportService = {
       .map(e => e.join(";"))
       .join("\n");
 
+    const fileName = `estoque_vendas_${new Date().toISOString().split('T')[0]}.csv`;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `estoque_vendas_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", fileName);
     link.click();
+    return fileName;
   },
 
   exportToExcel: (products: Product[], transactions: Transaction[]) => {
@@ -37,17 +38,14 @@ export const exportService = {
       currency: 'BRL',
     });
 
-    // Processamento dos dados do Inventário com as colunas solicitadas
     const inventoryData = products.map(p => {
       const valorTotalCusto = p.currentStock * p.costPrice;
       const valorTotalVenda = p.currentStock * p.salePrice;
       
-      // Cálculo de autonomia: (Estoque Atual / Consumo Mensal) * 30 dias
       const autonomiaDias = p.monthlyConsumption > 0 
         ? Math.floor((p.currentStock / p.monthlyConsumption) * 30) 
         : 0;
       
-      // Definição de Status Visual com Emojis (Destaque para Crítico/Esgotado)
       let status = '✅ SAUDÁVEL';
       if (p.currentStock === 0) {
         status = '❌ !!! ESGOTADO !!!';
@@ -75,7 +73,6 @@ export const exportService = {
       };
     });
 
-    // Dados do Histórico
     const historyData = transactions.map(t => ({
       'Data': new Date(t.date).toLocaleString('pt-BR'),
       'Tipo': t.type,
@@ -85,33 +82,16 @@ export const exportService = {
       'Observações': t.notes
     }));
 
-    // Criação do Workbook
     const wb = XLSX.utils.book_new();
-    
-    // Aba de Inventário
     const wsInventory = XLSX.utils.json_to_sheet(inventoryData);
-    
-    // Ajuste de largura das colunas para melhor visualização
     const wsInventoryCols = [
-      { wch: 20 }, // Status
-      { wch: 10 }, // Código
-      { wch: 45 }, // Matéria Prima
-      { wch: 20 }, // Categoria
-      { wch: 10 }, // Unidade
-      { wch: 15 }, // Estoque Atual
-      { wch: 15 }, // Estoque Mínimo
-      { wch: 15 }, // Estoque de Segurança
-      { wch: 15 }, // Consumo Mensal
-      { wch: 18 }, // Custo Unitário
-      { wch: 18 }, // Preço de Venda
-      { wch: 28 }, // Valor Total Custo
-      { wch: 28 }, // Valor Total Venda
-      { wch: 20 }  // Autonomia
+      { wch: 20 }, { wch: 10 }, { wch: 45 }, { wch: 20 }, { wch: 10 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 28 },
+      { wch: 28 }, { wch: 20 }
     ];
     wsInventory['!cols'] = wsInventoryCols;
     XLSX.utils.book_append_sheet(wb, wsInventory, "Inventário Completo");
 
-    // Aba de Histórico
     const wsHistory = XLSX.utils.json_to_sheet(historyData);
     const wsHistoryCols = [
       { wch: 20 }, { wch: 15 }, { wch: 45 }, { wch: 15 }, { wch: 18 }, { wch: 50 }
@@ -119,8 +99,9 @@ export const exportService = {
     wsHistory['!cols'] = wsHistoryCols;
     XLSX.utils.book_append_sheet(wb, wsHistory, "Histórico");
     
-    // Geração do Arquivo
-    XLSX.writeFile(wb, `RELATORIO_ESTOQUE_MASTER_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const fileName = `RELATORIO_ESTOQUE_MASTER_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    return fileName;
   },
 
   exportToPDF: (products: Product[]) => {
@@ -157,7 +138,9 @@ export const exportService = {
       headStyles: { fillColor: [16, 185, 129] }
     });
 
-    doc.save(`estoque_precificacao_${new Date().toISOString().split('T')[0]}.pdf`);
+    const fileName = `estoque_precificacao_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    return fileName;
   },
 
   exportDashboardPDF: (stats: any) => {
@@ -199,7 +182,9 @@ export const exportService = {
       headStyles: { fillColor: [31, 41, 55] }
     });
 
-    doc.save(`Relatorio_Executivo_${new Date().toISOString().split('T')[0]}.pdf`);
+    const fileName = `Relatorio_Executivo_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    return fileName;
   },
 
   exportSingleProductPDF: (product: Product, transactions: Transaction[]) => {
@@ -259,6 +244,8 @@ export const exportService = {
       styles: { fontSize: 8 }
     });
 
-    doc.save(`Relatorio_${product.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+    const fileName = `Relatorio_${product.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    return fileName;
   }
 };

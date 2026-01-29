@@ -21,11 +21,12 @@ import {
   TrashIcon,
   HelpCircleIcon,
   XIcon,
-  CameraIcon
+  CameraIcon,
+  FilterIcon
 } from './components/Icons.tsx';
 
 type View = 'inventory' | 'history' | 'stats';
-type ModalMode = TransactionType | 'add' | 'edit' | 'bulkAdd' | 'tutorial' | null;
+type ModalMode = TransactionType | 'add' | 'edit' | 'bulkAdd' | 'tutorial' | 'exportSuccess' | null;
 
 // Componente Card de Produto Otimizado
 const ProductCard: React.FC<{
@@ -121,13 +122,13 @@ const ProductCard: React.FC<{
             {isRed && (
               <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase flex items-center gap-2 animate-pulse shadow-md shadow-red-100">
                 <AlertTriangleIcon /> 
-                Crítico {product.monthlyConsumption > 0 ? `• ${autonomyDays}d` : ''}
+                Crítico
               </span>
             )}
             {isYellow && (
               <span className="bg-amber-500 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase flex items-center gap-2 shadow-md shadow-amber-100">
                 <AlertTriangleIcon /> 
-                Atenção {product.monthlyConsumption > 0 ? `• ${autonomyDays}d` : ''}
+                Atenção
               </span>
             )}
           </>
@@ -158,7 +159,6 @@ const ProductCard: React.FC<{
       <div className="space-y-3 mb-6">
         <div className="flex justify-between items-center border-b border-slate-50 pb-2">
           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Estoque Disponível</p>
-          <div className="flex items-center gap-1 text-indigo-500"><CalendarIcon /><span className="text-[8px] font-black uppercase">{autonomyDays} dias de autonomia</span></div>
         </div>
         <div className="bg-slate-50 rounded-3xl p-5 flex items-center justify-between group-hover:bg-indigo-50/30 transition-colors duration-300">
           <div>
@@ -173,41 +173,62 @@ const ProductCard: React.FC<{
         </div>
       </div>
 
-      <div className="space-y-3 mb-6">
-        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-2">Valores Unitários</p>
-        <div className={`grid grid-cols-2 gap-4 rounded-2xl transition-all ${isCostUp ? 'orange-glow scale-[1.02] p-2' : ''}`}>
-          <div title={costTooltip} className="cursor-help">
-            <p className={`text-[10px] font-bold uppercase mb-1 ${isCostUp ? 'text-orange-600' : 'text-slate-400'}`}>Custo</p>
-            <div className="flex items-center gap-2">
-              <p className={`font-black text-lg ${isCostUp ? 'animate-cost-bounce' : 'text-slate-700'}`}>{currencyFormatter.format(product.costPrice)}</p>
-            </div>
+      {/* Seção Autonomia em Dias - Visibilidade Reforçada */}
+      <div className="mb-6 bg-indigo-50/50 border border-indigo-100/50 rounded-2xl p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-xl ${autonomyDays < 7 ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'}`}>
+            <CalendarIcon />
           </div>
-          <div className="text-right">
-            <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Venda</p>
-            <p className="font-black text-emerald-700 text-lg">{currencyFormatter.format(product.salePrice)}</p>
+          <div>
+            <p className="text-[7px] font-black text-indigo-400 uppercase tracking-tighter">Autonomia Estimada</p>
+            <p className={`text-lg font-black leading-none ${autonomyDays < 7 ? 'text-red-600' : 'text-indigo-700'}`}>
+              {autonomyDays} <span className="text-[10px] uppercase">Dias</span>
+            </p>
           </div>
+        </div>
+        <div className="text-right">
+          <span className={`text-[8px] font-black px-2 py-1 rounded-md uppercase ${autonomyDays > 30 ? 'bg-emerald-100 text-emerald-600' : autonomyDays > 7 ? 'bg-indigo-100 text-indigo-600' : 'bg-red-100 text-red-600'}`}>
+            {autonomyDays > 60 ? 'Abundante' : autonomyDays > 30 ? 'Seguro' : autonomyDays > 7 ? 'Moderado' : 'Crítico'}
+          </span>
         </div>
       </div>
 
-      <div className="space-y-3">
+      {/* Gráfico de Barras: Custo vs Venda - Redesenhado */}
+      <div className="space-y-4 mb-6">
          <div className="flex justify-between items-center border-b border-slate-50 pb-2">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Análise de Lucratividade</p>
-            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${marginPerc > 30 ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-              Margem: +{marginPerc}%
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Comparativo Financeiro</p>
+            <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-lg ${marginPerc > 30 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+              MARGEM: +{marginPerc}%
             </span>
          </div>
-         <div className="px-1 space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-slate-400 transition-all duration-700 ease-out rounded-full" style={{ width: `${costWidth}%` }} />
+         
+         <div className="space-y-3 px-1">
+            {/* Barra de Custo */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-tighter">
+                <span className="text-slate-500">Custo Unitário</span>
+                <span className="text-slate-800 font-bold">{currencyFormatter.format(product.costPrice)}</span>
               </div>
-              <span className="text-[7px] font-black text-slate-400 w-8">CUSTO</span>
+              <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                <div 
+                  className={`h-full bg-slate-400 transition-all duration-1000 ease-out rounded-full ${isCostUp ? 'animate-pulse bg-orange-500' : ''}`} 
+                  style={{ width: `${costWidth}%` }} 
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-2 bg-emerald-50 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 transition-all duration-700 ease-out rounded-full shadow-sm" style={{ width: `${saleWidth}%` }} />
+
+            {/* Barra de Venda */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-tighter">
+                <span className="text-emerald-500">Preço de Venda</span>
+                <span className="text-emerald-700 font-bold">{currencyFormatter.format(product.salePrice)}</span>
               </div>
-              <span className="text-[7px] font-black text-emerald-600 w-8">VENDA</span>
+              <div className="h-3 w-full bg-emerald-50 rounded-full overflow-hidden shadow-inner">
+                <div 
+                  className="h-full bg-emerald-500 transition-all duration-1000 ease-out rounded-full shadow-[0_0_8px_rgba(16,185,129,0.3)]" 
+                  style={{ width: `${saleWidth}%` }} 
+                />
+              </div>
             </div>
          </div>
       </div>
@@ -319,6 +340,13 @@ const App: React.FC = () => {
   const [transactionCost, setTransactionCost] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [toast, setToast] = useState<{ message: string } | null>(null);
+  const [lastGeneratedFile, setLastGeneratedFile] = useState<string | null>(null);
+  
+  // Estados para filtros do histórico
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<TransactionType | 'TODOS'>('TODOS');
+  const [historyStartDate, setHistoryStartDate] = useState<string>('');
+  const [historyEndDate, setHistoryEndDate] = useState<string>('');
+
   const [productForm, setProductForm] = useState<Partial<Product>>({
     name: '', code: '', category: '', unit: 'KG', safetyStock: 0, minStock: 0, 
     monthlyConsumption: 0, currentStock: 0, costPrice: 0, salePrice: 0, image: ''
@@ -373,6 +401,18 @@ const App: React.FC = () => {
     return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
   }, [products, debouncedSearchTerm, selectedCategory]);
 
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const typeMatch = historyTypeFilter === 'TODOS' || t.type === historyTypeFilter;
+      
+      const tDate = new Date(t.date);
+      const startMatch = !historyStartDate || tDate >= new Date(historyStartDate + 'T00:00:00');
+      const endMatch = !historyEndDate || tDate <= new Date(historyEndDate + 'T23:59:59');
+      
+      return typeMatch && startMatch && endMatch;
+    });
+  }, [transactions, historyTypeFilter, historyStartDate, historyEndDate]);
+
   const stats = useMemo(() => {
     const totalValue = products.reduce((acc, p) => acc + (p.currentStock * p.costPrice), 0);
     const skuValues = products.map(p => ({
@@ -402,6 +442,7 @@ const App: React.FC = () => {
     setTransactionCost(0);
     setNotes('');
     setImageError(null);
+    setLastGeneratedFile(null);
     setProductForm({
       name: '', code: '', category: '', unit: 'KG', safetyStock: 0, minStock: 0, 
       monthlyConsumption: 0, currentStock: 0, costPrice: 0, salePrice: 0, image: ''
@@ -414,15 +455,20 @@ const App: React.FC = () => {
   };
 
   const handleExportAction = (type: 'pdf' | 'excel' | 'dashboard') => {
-    if (type === 'pdf') {
-      showToast('Exportando PDF do Inventário...');
-      exportService.exportToPDF(processedProducts);
-    } else if (type === 'excel') {
-      showToast('Gerando Planilha Excel Completa...');
-      exportService.exportToExcel(products, transactions);
-    } else if (type === 'dashboard') {
-      showToast('Gerando Resumo Executivo em PDF...');
-      exportService.exportDashboardPDF(stats);
+    let fileName = '';
+    try {
+      if (type === 'pdf') {
+        fileName = exportService.exportToPDF(processedProducts);
+      } else if (type === 'excel') {
+        fileName = exportService.exportToExcel(products, transactions);
+      } else if (type === 'dashboard') {
+        fileName = exportService.exportDashboardPDF(stats);
+      }
+      setLastGeneratedFile(fileName);
+      setModalType('exportSuccess');
+    } catch (err) {
+      showToast('Erro ao gerar arquivo de exportação.');
+      console.error(err);
     }
   };
 
@@ -654,7 +700,7 @@ const App: React.FC = () => {
           ...productForm, 
           previousCostPrice: costChanged ? p.costPrice : p.previousCostPrice,
           costHistory: costChanged 
-            ? [{ price: productForm.costPrice!, date: timestamp }, ...(p.costHistory || [])].slice(0, 5)
+            ? [{ price: productForm.costPrice!, date: timestamp }, ...(productForm.costHistory || p.costHistory || [])].slice(0, 5)
             : p.costHistory
         } as Product;
       });
@@ -736,9 +782,14 @@ const App: React.FC = () => {
   }, []);
 
   const handleReportAction = useCallback((product: Product) => {
-    const productTransactions = transactions.filter(t => t.productId === product.id);
-    showToast(`Gerando relatório de ${product.name}...`);
-    exportService.exportSingleProductPDF(product, productTransactions);
+    try {
+      const productTransactions = transactions.filter(t => t.productId === product.id);
+      const fileName = exportService.exportSingleProductPDF(product, productTransactions);
+      setLastGeneratedFile(fileName);
+      setModalType('exportSuccess');
+    } catch (err) {
+      showToast('Erro ao gerar relatório do produto.');
+    }
   }, [transactions]);
 
   const renderInventoryView = () => (
@@ -763,23 +814,93 @@ const App: React.FC = () => {
   );
 
   const renderHistoryView = () => (
-    <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
-      <div className="p-6 md:p-8 border-b border-slate-50 flex justify-between items-center"><h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter">Histórico de Movimentações</h2></div>
+    <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden mb-20">
+      <div className="p-6 md:p-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter">Histórico de Movimentações</h2>
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          {/* Filtro de Tipo */}
+          <div className="flex items-center gap-2 bg-slate-100 rounded-2xl px-4 py-2 border border-slate-200">
+            <FilterIcon />
+            <select 
+              value={historyTypeFilter} 
+              onChange={e => setHistoryTypeFilter(e.target.value as any)}
+              className="bg-transparent border-none text-[11px] font-bold text-slate-700 outline-none"
+            >
+              <option value="TODOS">Todos os Tipos</option>
+              <option value={TransactionType.ENTRY}>Entradas</option>
+              <option value={TransactionType.EXIT}>Saídas</option>
+              <option value={TransactionType.ADJUSTMENT}>Ajustes</option>
+            </select>
+          </div>
+
+          {/* Filtro de Período */}
+          <div className="flex items-center gap-2 bg-slate-100 rounded-2xl px-4 py-2 border border-slate-200">
+            <CalendarIcon />
+            <input 
+              type="date" 
+              value={historyStartDate} 
+              onChange={e => setHistoryStartDate(e.target.value)}
+              className="bg-transparent border-none text-[11px] font-bold text-slate-700 outline-none"
+              placeholder="Início"
+            />
+            <span className="text-slate-400 text-xs">até</span>
+            <input 
+              type="date" 
+              value={historyEndDate} 
+              onChange={e => setHistoryEndDate(e.target.value)}
+              className="bg-transparent border-none text-[11px] font-bold text-slate-700 outline-none"
+              placeholder="Fim"
+            />
+            {(historyStartDate || historyEndDate || historyTypeFilter !== 'TODOS') && (
+              <button 
+                onClick={() => { setHistoryStartDate(''); setHistoryEndDate(''); setHistoryTypeFilter('TODOS'); }}
+                className="ml-2 text-red-500 hover:text-red-700 transition-colors"
+                title="Limpar Filtros"
+              >
+                <XIcon />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+      
       <div className="overflow-x-auto no-scrollbar">
-        <table className="w-full text-left min-w-[600px]">
+        <table className="w-full text-left min-w-[800px]">
           <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            <tr><th className="px-6 py-5">Data</th><th className="px-6 py-5">Produto</th><th className="px-6 py-5">Tipo</th><th className="px-6 py-5 text-right">Quantidade</th><th className="px-6 py-5 text-right">Custo Unit.</th></tr>
+            <tr>
+              <th className="px-6 py-5">Data</th>
+              <th className="px-6 py-5">Produto</th>
+              <th className="px-6 py-5">Tipo</th>
+              <th className="px-6 py-5 text-right">Quantidade</th>
+              <th className="px-6 py-5 text-right">Custo Unit.</th>
+              <th className="px-6 py-5">Observações / Motivo</th>
+            </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {transactions.map(t => (
+            {filteredTransactions.length > 0 ? filteredTransactions.map(t => (
               <tr key={t.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-5 text-xs font-bold text-slate-500">{new Date(t.date).toLocaleString('pt-BR')}</td>
                 <td className="px-6 py-5 text-xs font-black">{t.productName}</td>
-                <td className="px-6 py-5"><span className={`text-[9px] font-black px-3 py-1.5 rounded-full uppercase ${t.type === TransactionType.ENTRY ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>{t.type}</span></td>
+                <td className="px-6 py-5">
+                  <span className={`text-[9px] font-black px-3 py-1.5 rounded-full uppercase ${
+                    t.type === TransactionType.ENTRY ? 'bg-emerald-50 text-emerald-600' : 
+                    t.type === TransactionType.EXIT ? 'bg-slate-100 text-slate-600' : 
+                    'bg-amber-50 text-amber-600'
+                  }`}>
+                    {t.type}
+                  </span>
+                </td>
                 <td className="px-6 py-5 text-xs font-black text-right tabular-nums">{t.quantity}</td>
                 <td className="px-6 py-5 text-xs font-black text-right tabular-nums">{currencyFormatter.format(t.unitCost || 0)}</td>
+                <td className="px-6 py-5 text-[11px] font-medium text-slate-500 max-w-xs truncate" title={t.notes}>
+                  {t.notes || '-'}
+                </td>
               </tr>
-            ))}
+            )) : (
+              <tr>
+                <td colSpan={6} className="px-6 py-20 text-center text-slate-400 font-bold uppercase tracking-widest">Nenhuma movimentação encontrada com estes filtros.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -877,6 +998,33 @@ const App: React.FC = () => {
           </div>
 
           <button onClick={closeModal} className="w-full bg-indigo-600 text-white font-black py-6 rounded-[32px] shadow-2xl active:scale-95 transition-all text-lg mt-12 uppercase tracking-tighter">Entendi, Vamos Começar!</button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderExportSuccessModal = () => {
+    if (modalType !== 'exportSuccess') return null;
+    return (
+      <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[200] flex items-center justify-center p-4">
+        <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in duration-300 text-center">
+          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <DownloadIcon />
+          </div>
+          <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter mb-2">Exportação Concluída</h3>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Seu arquivo foi gerado com sucesso!</p>
+          
+          <div className="bg-slate-50 p-4 rounded-2xl mb-8 border border-slate-100">
+            <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Nome do Arquivo:</p>
+            <p className="text-xs font-mono font-bold text-slate-600 break-all">{lastGeneratedFile}</p>
+          </div>
+
+          <button 
+            onClick={closeModal} 
+            className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+          >
+            Fechar
+          </button>
         </div>
       </div>
     );
@@ -1145,6 +1293,7 @@ const App: React.FC = () => {
       {renderTransactionModal()}
       {renderProductFormModal()}
       {renderTutorialModal()}
+      {renderExportSuccessModal()}
     </div>
   );
 };

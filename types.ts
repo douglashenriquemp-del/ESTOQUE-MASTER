@@ -21,6 +21,7 @@ export interface Product {
   salePrice: number; // Preço de venda unitário
   previousCostPrice?: number; // Preço de custo anterior para alertas
   costHistory?: CostHistoryEntry[]; // Histórico dos últimos preços
+  image?: string; // URL da imagem do produto
 }
 
 export enum TransactionType {

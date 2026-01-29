@@ -37,19 +37,28 @@ export const exportService = {
       currency: 'BRL',
     });
 
+    // Processamento dos dados do Inventário com as colunas solicitadas
     const inventoryData = products.map(p => {
       const valorTotalCusto = p.currentStock * p.costPrice;
       const valorTotalVenda = p.currentStock * p.salePrice;
+      
+      // Cálculo de autonomia: (Estoque Atual / Consumo Mensal) * 30 dias
       const autonomiaDias = p.monthlyConsumption > 0 
         ? Math.floor((p.currentStock / p.monthlyConsumption) * 30) 
         : 0;
       
-      let status = '✅ ESTÁVEL';
-      if (p.currentStock === 0) status = '❌ ESGOTADO';
-      else if (p.currentStock <= p.minStock) status = '🚨 CRÍTICO';
-      else if (p.currentStock <= p.safetyStock) status = '⚠️ ATENÇÃO';
+      // Definição de Status Visual com Emojis (Destaque para Crítico/Esgotado)
+      let status = '✅ SAUDÁVEL';
+      if (p.currentStock === 0) {
+        status = '❌ !!! ESGOTADO !!!';
+      } else if (p.currentStock <= p.minStock) {
+        status = '🚨 !!! CRÍTICO !!!';
+      } else if (p.currentStock <= p.safetyStock) {
+        status = '⚠️ ATENÇÃO';
+      }
 
       return {
+        'Status': status,
         'Código': p.code,
         'Matéria Prima': p.name,
         'Categoria': p.category,
@@ -62,11 +71,11 @@ export const exportService = {
         'Preço de Venda': currencyFormatter.format(p.salePrice),
         'Valor Total em Estoque (Custo)': currencyFormatter.format(valorTotalCusto),
         'Valor Total em Estoque (Venda)': currencyFormatter.format(valorTotalVenda),
-        'Autonomia em Dias': p.monthlyConsumption > 0 ? `${autonomiaDias} dias` : 'Indeterminada',
-        'Status': status
+        'Autonomia em Dias': p.monthlyConsumption > 0 ? `${autonomiaDias} dias` : 'Indeterminada'
       };
     });
 
+    // Dados do Histórico
     const historyData = transactions.map(t => ({
       'Data': new Date(t.date).toLocaleString('pt-BR'),
       'Tipo': t.type,
@@ -76,23 +85,41 @@ export const exportService = {
       'Observações': t.notes
     }));
 
+    // Criação do Workbook
     const wb = XLSX.utils.book_new();
+    
+    // Aba de Inventário
     const wsInventory = XLSX.utils.json_to_sheet(inventoryData);
+    
+    // Ajuste de largura das colunas para melhor visualização
     const wsInventoryCols = [
-      { wch: 10 }, { wch: 45 }, { wch: 20 }, { wch: 10 }, { wch: 15 }, 
-      { wch: 15 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, 
-      { wch: 28 }, { wch: 28 }, { wch: 20 }, { wch: 15 }
+      { wch: 20 }, // Status
+      { wch: 10 }, // Código
+      { wch: 45 }, // Matéria Prima
+      { wch: 20 }, // Categoria
+      { wch: 10 }, // Unidade
+      { wch: 15 }, // Estoque Atual
+      { wch: 15 }, // Estoque Mínimo
+      { wch: 15 }, // Estoque de Segurança
+      { wch: 15 }, // Consumo Mensal
+      { wch: 18 }, // Custo Unitário
+      { wch: 18 }, // Preço de Venda
+      { wch: 28 }, // Valor Total Custo
+      { wch: 28 }, // Valor Total Venda
+      { wch: 20 }  // Autonomia
     ];
     wsInventory['!cols'] = wsInventoryCols;
-    XLSX.utils.book_append_sheet(wb, wsInventory, "Inventário Detalhado");
+    XLSX.utils.book_append_sheet(wb, wsInventory, "Inventário Completo");
 
+    // Aba de Histórico
     const wsHistory = XLSX.utils.json_to_sheet(historyData);
     const wsHistoryCols = [
       { wch: 20 }, { wch: 15 }, { wch: 45 }, { wch: 15 }, { wch: 18 }, { wch: 50 }
     ];
     wsHistory['!cols'] = wsHistoryCols;
-    XLSX.utils.book_append_sheet(wb, wsHistory, "Histórico de Movimentações");
+    XLSX.utils.book_append_sheet(wb, wsHistory, "Histórico");
     
+    // Geração do Arquivo
     XLSX.writeFile(wb, `RELATORIO_ESTOQUE_MASTER_${new Date().toISOString().split('T')[0]}.xlsx`);
   },
 
@@ -131,6 +158,48 @@ export const exportService = {
     });
 
     doc.save(`estoque_precificacao_${new Date().toISOString().split('T')[0]}.pdf`);
+  },
+
+  exportDashboardPDF: (stats: any) => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const currency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    
+    doc.setFontSize(22);
+    doc.setTextColor(79, 70, 229);
+    doc.text('Resumo Executivo de Estoque', 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 28);
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Indicador', 'Valor']],
+      body: [
+        ['Total de Capital Imobilizado (Custo)', currency(stats.totalValue)],
+        ['Valor Estimado de Venda', currency(stats.totalSaleValue)],
+        ['Margem Bruta Estimada', currency(stats.totalSaleValue - stats.totalValue)],
+        ['Itens em Status Crítico', stats.criticalCount.toString()],
+        ['Total de SKUs Cadastrados', stats.uniqueItemsCount.toString()],
+        ['Total de Itens Físicos', stats.totalItems.toString()],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [79, 70, 229] }
+    });
+
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text('Top 10 SKUs por Valor em Estoque', 14, (doc as any).lastAutoTable.finalY + 15);
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [['Matéria Prima', 'Valor em Estoque']],
+      body: stats.topSkuValues.map((sku: any) => [sku.name, currency(sku.totalCost)]),
+      theme: 'grid',
+      headStyles: { fillColor: [31, 41, 55] }
+    });
+
+    doc.save(`Relatorio_Executivo_${new Date().toISOString().split('T')[0]}.pdf`);
   },
 
   exportSingleProductPDF: (product: Product, transactions: Transaction[]) => {

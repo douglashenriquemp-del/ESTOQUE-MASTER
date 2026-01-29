@@ -886,19 +886,31 @@ const App: React.FC = () => {
     if (!selectedProduct || !modalType || !['ENTRADA', 'SAÍDA', 'AJUSTE'].includes(modalType)) return null;
     return (
       <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-         <div className="bg-white rounded-[48px] w-full max-w-md p-8 shadow-2xl">
+         <div className="bg-white rounded-[48px] w-full max-w-md p-8 shadow-2xl overflow-y-auto max-h-[90vh] no-scrollbar">
             <h2 className="text-2xl font-black mb-6 uppercase tracking-tighter text-slate-800">{modalType}: <span className="text-indigo-600">{selectedProduct.name}</span></h2>
             <div className="space-y-6">
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Quantidade ({selectedProduct.unit})</label>
                   <input type="number" autoFocus inputMode="decimal" value={quantity || ''} onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)} className="w-full bg-slate-100 p-5 rounded-3xl text-3xl font-black text-indigo-600 outline-none" />
                 </div>
+                
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Observações / Motivo</label>
+                  <textarea 
+                    value={notes} 
+                    onChange={(e) => setNotes(e.target.value)} 
+                    placeholder="Ex: Lote produção #402, descarte por vencimento, etc."
+                    className="w-full bg-slate-100 p-5 rounded-3xl text-sm font-bold text-slate-700 outline-none min-h-[100px] resize-none"
+                  />
+                </div>
+
                 {(modalType === TransactionType.ENTRY || modalType === TransactionType.ADJUSTMENT) && (
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Custo Unitário (R$)</label>
                     <input type="number" step="0.01" inputMode="decimal" value={transactionCost || ''} onChange={(e) => setTransactionCost(parseFloat(e.target.value) || 0)} className="w-full bg-slate-100 p-5 rounded-3xl text-2xl font-black text-amber-600 outline-none" />
                   </div>
                 )}
+                
                 <div className="flex gap-4 pt-2">
                   <button onClick={closeModal} className="flex-1 bg-slate-100 text-slate-500 font-black py-5 rounded-[24px]">Voltar</button>
                   <button onClick={handleTransaction} disabled={quantity <= 0} className="flex-1 bg-indigo-600 text-white font-black py-5 rounded-[24px] disabled:opacity-50">Confirmar</button>

@@ -1,34 +1,49 @@
 
-export type UnitOfMeasure = 'SC' | 'KG' | 'BB' | 'CX' | 'FD' | 'L';
+export type UnitOfMeasure = 'SC' | 'KG' | 'BB' | 'CX' | 'FD' | 'L' | 'UN' | 'PT';
+export type ProductType = 'RAW_MATERIAL' | 'FINISHED_GOOD';
+export type AlertStatus = 'CRITICAL' | 'ATTENTION' | 'NORMAL';
 
 export interface CostHistoryEntry {
   price: number;
   date: string;
 }
 
-export interface Product {
-  id: string; // Internal UUID
-  code: string; // COD from PDF
+export type UserRole = 'ADMIN' | 'VIEWER';
+
+export interface User {
+  id: string;
   name: string;
-  category: string; // Categoria do produto
+  username: string;
+  password?: string;
+  role: UserRole;
+}
+
+export interface Product {
+  id: string;
+  type: ProductType;
+  code: string;
+  ean?: string;
+  dun?: string;
+  name: string;
+  category: string;
   unit: string;
   safetyStock: number;
   minStock: number;
   monthlyConsumption: number;
   currentStock: number;
-  previousStock: number;
-  costPrice: number; // Preço de custo por unidade
-  salePrice: number; // Preço de venda unitário
-  previousCostPrice?: number; // Preço de custo anterior para alertas
-  costHistory?: CostHistoryEntry[]; // Histórico dos últimos preços
-  image?: string; // URL da imagem do produto
+  costPrice: number;
+  salePrice: number;
+  previousCostPrice?: number;
+  costHistory?: CostHistoryEntry[];
 }
 
-export enum TransactionType {
-  ENTRY = 'ENTRADA',
-  EXIT = 'SAÍDA',
-  ADJUSTMENT = 'AJUSTE'
-}
+export type TransactionType = 'ENTRADA' | 'SAÍDA' | 'AJUSTE';
+
+export const TRANSACTION_TYPES: Record<string, TransactionType> = {
+  ENTRY: 'ENTRADA',
+  EXIT: 'SAÍDA',
+  ADJUSTMENT: 'AJUSTE'
+};
 
 export interface Transaction {
   id: string;
@@ -36,12 +51,8 @@ export interface Transaction {
   productName: string;
   type: TransactionType;
   quantity: number;
-  unitCost?: number; // Custo unitário no momento da transação
+  unitCost?: number;
   date: string;
   notes: string;
-}
-
-export interface ExportData {
-  products: Product[];
-  transactions: Transaction[];
+  userName: string;
 }

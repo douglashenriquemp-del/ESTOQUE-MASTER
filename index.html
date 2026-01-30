@@ -44,6 +44,14 @@
             display: inline-block;
             transform-origin: center;
         }
+
+        @keyframes progress-drain {
+            0% { width: 100%; }
+            100% { width: 0%; }
+        }
+        .animate-notice-progress {
+            animation: progress-drain 6s linear forwards;
+        }
         
         /* Ocultar barra de rolagem mas manter funcionalidade */
         .no-scrollbar::-webkit-scrollbar { display: none; }

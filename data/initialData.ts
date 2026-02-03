@@ -1,66 +1,99 @@
 
 import { Product } from '../types.ts';
 
+const createFinishedGoodFromPDF = (
+  ref: string, 
+  name: string, 
+  typeEmb: string, 
+  ean: string, 
+  dun: string, 
+  category: string,
+  minStock: number = 10
+): Product => ({
+  id: `FG-${ref}`,
+  type: 'FINISHED_GOOD',
+  code: ref,
+  ean: ean || '',
+  dun: dun || '',
+  name: name.toUpperCase(),
+  category: category,
+  unit: typeEmb === 'CX' ? 'CX' : 'FD',
+  safetyStock: Math.ceil(minStock * 1.5),
+  minStock: minStock,
+  monthlyConsumption: minStock * 4,
+  currentStock: Math.floor(Math.random() * (minStock * 4)),
+  costPrice: 0,
+  salePrice: 0,
+  previousCostPrice: 0,
+  costHistory: []
+});
+
+const createRawMaterialFromPDF = (
+  cod: string, 
+  name: string, 
+  unit: string, 
+  safety: number, 
+  min: number, 
+  consumption: number, 
+  current: number,
+  category: string
+): Product => ({
+  id: `RM-${cod || Math.random()}`,
+  type: 'RAW_MATERIAL',
+  code: cod || 'S/N',
+  name: name.toUpperCase(),
+  category,
+  unit,
+  safetyStock: safety || 0,
+  minStock: min || 0,
+  monthlyConsumption: consumption || 0,
+  currentStock: current || 0,
+  costPrice: 0,
+  salePrice: 0,
+  previousCostPrice: 0,
+  costHistory: []
+});
+
 export const INITIAL_PRODUCTS: Product[] = [
-  // Fixed: Removed 'previousStock' which was not in the Product interface and added mandatory 'type' property
-  { id: '1', type: 'RAW_MATERIAL', code: '2170', name: 'AÇAFRÃO RAIZ SC C/ 25Kg', category: 'Especiarias', unit: 'SC', safetyStock: 10, minStock: 20, monthlyConsumption: 300, currentStock: 14, costPrice: 350.00, salePrice: 490.00, previousCostPrice: 340.00, costHistory: [{price: 350, date: '2024-05-10T10:00:00Z'}, {price: 340, date: '2024-04-05T14:30:00Z'}] },
-  { id: '2', type: 'RAW_MATERIAL', code: '252', name: 'ÁCIDO CÍTRICO 25 KG', category: 'Químicos', unit: 'SC', safetyStock: 5, minStock: 10, monthlyConsumption: 100, currentStock: 10, costPrice: 220.00, salePrice: 330.00, previousCostPrice: 215.00, costHistory: [{price: 220, date: '2024-05-08T09:00:00Z'}, {price: 215, date: '2024-03-20T11:15:00Z'}] },
-  { id: '3', type: 'RAW_MATERIAL', code: '1497', name: 'ALECRIM 25kg', category: 'Especiarias', unit: 'SC', safetyStock: 2, minStock: 5, monthlyConsumption: 50, currentStock: 6, costPrice: 410.00, salePrice: 615.00, previousCostPrice: 410.00, costHistory: [{price: 410, date: '2024-05-12T08:45:00Z'}] },
-  { id: '4', type: 'RAW_MATERIAL', code: '000', name: 'ALHO INDUSTRIAL KG', category: 'Vegetais', unit: 'KG', safetyStock: 100, minStock: 200, monthlyConsumption: 1500, currentStock: 459, costPrice: 18.50, salePrice: 32.00, previousCostPrice: 18.50, costHistory: [{price: 18.50, date: '2024-05-15T16:20:00Z'}] },
-  { id: '5', type: 'RAW_MATERIAL', code: '190', name: 'ALPISTE SC C/ 45,36kg', category: 'Grãos', unit: 'SC', safetyStock: 1, minStock: 2, monthlyConsumption: 10, currentStock: 1, costPrice: 185.00, salePrice: 280.00, previousCostPrice: 185.00, costHistory: [{price: 185, date: '2024-05-01T10:00:00Z'}] },
-  { id: '6', type: 'RAW_MATERIAL', code: '1945', name: 'AMACIANTE P/ CARNES 10kg', category: 'Químicos', unit: 'SC', safetyStock: 5, minStock: 10, monthlyConsumption: 80, currentStock: 23, costPrice: 95.00, salePrice: 150.00, previousCostPrice: 95.00, costHistory: [{price: 95, date: '2024-04-28T13:10:00Z'}] },
-  { id: '7', type: 'RAW_MATERIAL', code: '139', name: 'AZEITE DE DENDÊ (BRUTO)', category: 'Condimentos', unit: 'BB', safetyStock: 2, minStock: 4, monthlyConsumption: 2816, currentStock: 1, costPrice: 1250.00, salePrice: 1800.00, previousCostPrice: 1250.00, costHistory: [{price: 1250, date: '2024-05-05T07:30:00Z'}] },
-  { id: '8', type: 'RAW_MATERIAL', code: '1687', name: 'BENZOATO DE SODIO SC C/ 25 KG', category: 'Químicos', unit: 'SC', safetyStock: 1, minStock: 3, monthlyConsumption: 15, currentStock: 2, costPrice: 320.00, salePrice: 480.00, previousCostPrice: 320.00, costHistory: [{price: 320, date: '2024-04-15T11:40:00Z'}] },
-  { id: '9', type: 'RAW_MATERIAL', code: '525', name: 'BICARBONATO DE SÓDIO 25kg', category: 'Químicos', unit: 'SC', safetyStock: 10, minStock: 15, monthlyConsumption: 500, currentStock: 19, costPrice: 145.00, salePrice: 210.00, previousCostPrice: 145.00, costHistory: [{price: 145, date: '2024-05-11T14:50:00Z'}] },
-  { id: '10', type: 'RAW_MATERIAL', code: '122', name: 'BOLDO SC 25 kg', category: 'Especiarias', unit: 'SC', safetyStock: 4, minStock: 10, monthlyConsumption: 125, currentStock: 18, costPrice: 210.00, salePrice: 315.00, previousCostPrice: 210.00, costHistory: [{price: 210, date: '2024-05-02T10:15:00Z'}] },
-  { id: '11', type: 'RAW_MATERIAL', code: '2097', name: 'CANELA VIETINAM 25KG', category: 'Especiarias', unit: 'CX', safetyStock: 4, minStock: 8, monthlyConsumption: 100, currentStock: 10, costPrice: 580.00, salePrice: 870.00, previousCostPrice: 580.00, costHistory: [{price: 580, date: '2024-05-09T09:30:00Z'}] },
-  { id: '12', type: 'RAW_MATERIAL', code: '2196', name: 'CANELA INDONESIA 25KG', category: 'Especiarias', unit: 'SC', safetyStock: 4, minStock: 8, monthlyConsumption: 100, currentStock: 7, costPrice: 420.00, salePrice: 630.00, previousCostPrice: 420.00, costHistory: [{price: 420, date: '2024-05-04T15:20:00Z'}] },
-  { id: '13', type: 'RAW_MATERIAL', code: '1527', name: 'CANJICA BRANCA SC C/ 25kg', category: 'Grãos', unit: 'SC', safetyStock: 80, minStock: 200, monthlyConsumption: 2250, currentStock: 494, costPrice: 85.00, salePrice: 125.00, previousCostPrice: 85.00, costHistory: [{price: 85, date: '2024-05-14T08:00:00Z'}] },
-  { id: '14', type: 'RAW_MATERIAL', code: '2038', name: 'KETCHUP 200 L', category: 'Molhos', unit: 'BB', safetyStock: 1, minStock: 2, monthlyConsumption: 231, currentStock: 0, costPrice: 1450.00, salePrice: 2100.00, previousCostPrice: 1450.00, costHistory: [] },
-  { id: '15', type: 'RAW_MATERIAL', code: '2376', name: 'CEBOLA DESIDRATADA GRAN. PEQUENA CX C/20kg', category: 'Vegetais', unit: 'CX', safetyStock: 33, minStock: 80, monthlyConsumption: 2640, currentStock: 33, costPrice: 380.00, salePrice: 570.00, previousCostPrice: 380.00, costHistory: [{price: 380, date: '2024-05-10T11:00:00Z'}] },
-  { id: '16', type: 'RAW_MATERIAL', code: '1962', name: 'MOLHO DE ALHO 200L', category: 'Molhos', unit: 'BB', safetyStock: 5, minStock: 10, monthlyConsumption: 1668, currentStock: 16, costPrice: 890.00, salePrice: 1350.00, previousCostPrice: 890.00, costHistory: [{price: 890, date: '2024-04-20T14:40:00Z'}] },
-  { id: '17', type: 'RAW_MATERIAL', code: '2103', name: 'MOLHO DE PIMENTA CUMARI 200L', category: 'Molhos', unit: 'BB', safetyStock: 2, minStock: 5, monthlyConsumption: 2815, currentStock: 8, costPrice: 1100.00, salePrice: 1650.00, previousCostPrice: 1100.00, costHistory: [{price: 1100, date: '2024-05-12T13:20:00Z'}] },
-  { id: '18', type: 'RAW_MATERIAL', code: '1964', name: 'MOLHO SHOYU 200L', category: 'Molhos', unit: 'BB', safetyStock: 3, minStock: 6, monthlyConsumption: 6000, currentStock: 12, costPrice: 950.00, salePrice: 1425.00, previousCostPrice: 950.00, costHistory: [{price: 950, date: '2024-05-01T10:50:00Z'}] },
-  { id: '19', type: 'RAW_MATERIAL', code: '509', name: 'QUIRELA 60kg', category: 'Grãos', unit: 'KG', safetyStock: 100, minStock: 500, monthlyConsumption: 12440, currentStock: 0, costPrice: 2.10, salePrice: 3.50, previousCostPrice: 2.10, costHistory: [{price: 2.10, date: '2024-03-15T09:00:00Z'}] },
-  { id: '20', type: 'RAW_MATERIAL', code: '1176', name: 'SAL MOIDO SC C/ 25kg', category: 'Condimentos', unit: 'SC', safetyStock: 50, minStock: 100, monthlyConsumption: 2000, currentStock: 807, costPrice: 28.00, salePrice: 42.00, previousCostPrice: 28.00, costHistory: [{price: 28, date: '2024-05-18T15:00:00Z'}] },
-  { id: '21', type: 'RAW_MATERIAL', code: '301', name: 'COLORAU ESPECIAL 25KG', category: 'Especiarias', unit: 'SC', safetyStock: 20, minStock: 40, monthlyConsumption: 500, currentStock: 45, costPrice: 160.00, salePrice: 240.00, previousCostPrice: 160.00, costHistory: [{price: 160, date: '2024-05-01T10:00:00Z'}] },
-  { id: '22', type: 'RAW_MATERIAL', code: '305', name: 'PIMENTA DO REINO GRÃO 25KG', category: 'Especiarias', unit: 'SC', safetyStock: 5, minStock: 10, monthlyConsumption: 120, currentStock: 12, costPrice: 850.00, salePrice: 1275.00, previousCostPrice: 850.00, costHistory: [{price: 850, date: '2024-05-01T10:00:00Z'}] },
-  { id: '23', type: 'RAW_MATERIAL', code: '410', name: 'OREGANO CHILENO 10KG', category: 'Especiarias', unit: 'FD', safetyStock: 10, minStock: 20, monthlyConsumption: 150, currentStock: 25, costPrice: 320.00, salePrice: 480.00, previousCostPrice: 320.00, costHistory: [{price: 320, date: '2024-05-01T10:00:00Z'}] },
-  { id: '24', type: 'RAW_MATERIAL', code: '550', name: 'COMINHO EM PÓ 25KG', category: 'Especiarias', unit: 'SC', safetyStock: 5, minStock: 10, monthlyConsumption: 200, currentStock: 15, costPrice: 480.00, salePrice: 720.00, previousCostPrice: 480.00, costHistory: [{price: 480, date: '2024-05-01T10:00:00Z'}] },
-  { id: '25', type: 'RAW_MATERIAL', code: '612', name: 'LOURO EM FOLHAS 5KG', category: 'Especiarias', unit: 'FD', safetyStock: 2, minStock: 5, monthlyConsumption: 30, currentStock: 4, costPrice: 195.00, salePrice: 295.00, previousCostPrice: 195.00, costHistory: [{price: 195, date: '2024-05-01T10:00:00Z'}] },
-  { id: '26', type: 'RAW_MATERIAL', code: '720', name: 'CRAVO DA INDIA 25KG', category: 'Especiarias', unit: 'SC', safetyStock: 1, minStock: 3, monthlyConsumption: 20, currentStock: 5, costPrice: 1250.00, salePrice: 1875.00, previousCostPrice: 1250.00, costHistory: [{price: 1250, date: '2024-05-01T10:00:00Z'}] },
-  { id: '27', type: 'RAW_MATERIAL', code: '815', name: 'NOZ MOSCADA BOLA 25KG', category: 'Especiarias', unit: 'CX', safetyStock: 2, minStock: 5, monthlyConsumption: 40, currentStock: 6, costPrice: 1800.00, salePrice: 2700.00, previousCostPrice: 1800.00, costHistory: [{price: 1800, date: '2024-05-01T10:00:00Z'}] },
-  { id: '28', type: 'RAW_MATERIAL', code: '910', name: 'CURRY EM PÓ 10KG', category: 'Especiarias', unit: 'FD', safetyStock: 3, minStock: 6, monthlyConsumption: 50, currentStock: 8, costPrice: 210.00, salePrice: 315.00, previousCostPrice: 210.00, costHistory: [{price: 210, date: '2024-05-01T10:00:00Z'}] },
-  { id: '29', type: 'RAW_MATERIAL', code: '1005', name: 'PAPRICA DOCE 25KG', category: 'Especiarias', unit: 'SC', safetyStock: 4, minStock: 8, monthlyConsumption: 100, currentStock: 10, costPrice: 380.00, salePrice: 570.00, previousCostPrice: 380.00, costHistory: [{price: 380, date: '2024-05-01T10:00:00Z'}] },
-  { id: '30', type: 'RAW_MATERIAL', code: '1006', name: 'PAPRICA DEFUMADA 25KG', category: 'Espepeciarias', unit: 'SC', safetyStock: 4, minStock: 8, monthlyConsumption: 100, currentStock: 7, costPrice: 420.00, salePrice: 630.00, previousCostPrice: 420.00, costHistory: [{price: 420, date: '2024-05-01T10:00:00Z'}] },
-  { id: '31', type: 'RAW_MATERIAL', code: '1110', name: 'MANJERICÃO DESIDRATADO 10KG', category: 'Especiarias', unit: 'FD', safetyStock: 2, minStock: 5, monthlyConsumption: 40, currentStock: 3, costPrice: 145.00, salePrice: 220.00, previousCostPrice: 145.00, costHistory: [{price: 145, date: '2024-05-01T10:00:00Z'}] },
-  { id: '32', type: 'RAW_MATERIAL', code: '1120', name: 'SALSA DESIDRATADA 5KG', category: 'Especiarias', unit: 'FD', safetyStock: 5, minStock: 10, monthlyConsumption: 80, currentStock: 12, costPrice: 85.00, salePrice: 130.00, previousCostPrice: 85.00, costHistory: [{price: 85, date: '2024-05-01T10:00:00Z'}] },
-  { id: '33', type: 'RAW_MATERIAL', code: '1130', name: 'CEBOLINHA DESIDRATADA 5KG', category: 'Especiarias', unit: 'FD', safetyStock: 5, minStock: 10, monthlyConsumption: 80, currentStock: 15, costPrice: 90.00, salePrice: 140.00, previousCostPrice: 90.00, costHistory: [{price: 90, date: '2024-05-01T10:00:00Z'}] },
-  { id: '34', type: 'RAW_MATERIAL', code: '1205', name: 'CALDO DE GALINHA 25KG', category: 'Condimentos', unit: 'SC', safetyStock: 10, minStock: 20, monthlyConsumption: 300, currentStock: 18, costPrice: 310.00, salePrice: 465.00, previousCostPrice: 310.00, costHistory: [{price: 310, date: '2024-05-01T10:00:00Z'}] },
-  { id: '35', type: 'RAW_MATERIAL', code: '1206', name: 'CALDO DE CARNE 25KG', category: 'Condimentos', unit: 'SC', safetyStock: 10, minStock: 20, monthlyConsumption: 300, currentStock: 22, costPrice: 310.00, salePrice: 465.00, previousCostPrice: 310.00, costHistory: [{price: 310, date: '2024-05-01T10:00:00Z'}] },
-  { id: '36', type: 'RAW_MATERIAL', code: '1300', name: 'GLUTAMATO MONOSSODICO 25KG', category: 'Químicos', unit: 'SC', safetyStock: 5, minStock: 10, monthlyConsumption: 150, currentStock: 11, costPrice: 425.00, salePrice: 640.00, previousCostPrice: 425.00, costHistory: [{price: 425, date: '2024-05-01T10:00:00Z'}] },
-  { id: '37', type: 'RAW_MATERIAL', code: '1405', name: 'AMIDO DE MILHO 25KG', category: 'Grãos', unit: 'SC', safetyStock: 20, minStock: 50, monthlyConsumption: 1000, currentStock: 65, costPrice: 115.00, salePrice: 175.00, previousCostPrice: 115.00, costHistory: [{price: 115, date: '2024-05-01T10:00:00Z'}] },
-  { id: '38', type: 'RAW_MATERIAL', code: '1501', name: 'FARINHA DE TRIGO ESP. 50KG', category: 'Grãos', unit: 'SC', safetyStock: 10, minStock: 25, monthlyConsumption: 800, currentStock: 30, costPrice: 135.00, salePrice: 205.00, previousCostPrice: 135.00, costHistory: [{price: 135, date: '2024-05-01T10:00:00Z'}] },
-  { id: '39', type: 'RAW_MATERIAL', code: '1602', name: 'AÇUCAR CRISTAL 50KG', category: 'Condimentos', unit: 'SC', safetyStock: 5, minStock: 15, monthlyConsumption: 400, currentStock: 20, costPrice: 145.00, salePrice: 220.00, previousCostPrice: 145.00, costHistory: [{price: 145, date: '2024-05-01T10:00:00Z'}] },
-  { id: '40', type: 'RAW_MATERIAL', code: '1701', name: 'SAL REFINADO 25KG', category: 'Condimentos', unit: 'SC', safetyStock: 20, minStock: 50, monthlyConsumption: 2000, currentStock: 75, costPrice: 32.00, salePrice: 48.00, previousCostPrice: 32.00, costHistory: [{price: 32, date: '2024-05-01T10:00:00Z'}] },
-  { id: '41', type: 'RAW_MATERIAL', code: '1805', name: 'OLEO DE SOJA 900ML', category: 'Condimentos', unit: 'CX', safetyStock: 10, minStock: 20, monthlyConsumption: 500, currentStock: 25, costPrice: 115.00, salePrice: 175.00, previousCostPrice: 115.00, costHistory: [{price: 115, date: '2024-05-01T10:00:00Z'}] },
-  { id: '42', type: 'RAW_MATERIAL', code: '1901', name: 'VINAGRE DE ALCOOL 5L', category: 'Condimentos', unit: 'CX', safetyStock: 5, minStock: 10, monthlyConsumption: 200, currentStock: 12, costPrice: 45.00, salePrice: 70.00, previousCostPrice: 45.00, costHistory: [{price: 45, date: '2024-05-01T10:00:00Z'}] },
-  { id: '43', type: 'RAW_MATERIAL', code: '2001', name: 'EXTRATO DE TOMATE 4KG', category: 'Molhos', unit: 'CX', safetyStock: 10, minStock: 20, monthlyConsumption: 400, currentStock: 15, costPrice: 85.00, salePrice: 130.00, previousCostPrice: 85.00, costHistory: [{price: 85, date: '2024-05-01T10:00:00Z'}] },
-  { id: '44', type: 'RAW_MATERIAL', code: '2105', name: 'MOSTARDA EM PÓ 10KG', category: 'Especiarias', unit: 'FD', safetyStock: 2, minStock: 5, monthlyConsumption: 50, currentStock: 4, costPrice: 280.00, salePrice: 420.00, previousCostPrice: 280.00, costHistory: [{price: 280, date: '2024-05-01T10:00:00Z'}] },
-  { id: '45', type: 'RAW_MATERIAL', code: '2201', name: 'ALHO EM PÓ 25KG', category: 'Especiarias', unit: 'SC', safetyStock: 5, minStock: 10, monthlyConsumption: 150, currentStock: 8, costPrice: 950.00, salePrice: 1425.00, previousCostPrice: 950.00, costHistory: [{price: 950, date: '2024-05-01T10:00:00Z'}] },
-  { id: '46', type: 'RAW_MATERIAL', code: '2202', name: 'CEBOLA EM PÓ 25KG', category: 'Especiarias', unit: 'SC', safetyStock: 5, minStock: 10, monthlyConsumption: 150, currentStock: 9, costPrice: 420.00, salePrice: 630.00, previousCostPrice: 420.00, costHistory: [{price: 420, date: '2024-05-01T10:00:00Z'}] },
-  { id: '47', type: 'RAW_MATERIAL', code: '2305', name: 'FUMAÇA LIQUIDA 5L', category: 'Condimentos', unit: 'BB', safetyStock: 2, minStock: 5, monthlyConsumption: 50, currentStock: 6, costPrice: 180.00, salePrice: 270.00, previousCostPrice: 180.00, costHistory: [{price: 180, date: '2024-05-01T10:00:00Z'}] },
-  { id: '48', type: 'RAW_MATERIAL', code: '2401', name: 'SORBATO DE POTASSIO 25KG', category: 'Químicos', unit: 'SC', safetyStock: 1, minStock: 3, monthlyConsumption: 15, currentStock: 2, costPrice: 850.00, salePrice: 1275.00, previousCostPrice: 850.00, costHistory: [{price: 850, date: '2024-05-01T10:00:00Z'}] },
-  { id: '49', type: 'RAW_MATERIAL', code: '2501', name: 'ERVA DOCE 10KG', category: 'Especiarias', unit: 'FD', safetyStock: 2, minStock: 5, monthlyConsumption: 40, currentStock: 7, costPrice: 195.00, salePrice: 295.00, previousCostPrice: 195.00, costHistory: [{price: 195, date: '2024-05-01T10:00:00Z'}] },
-  { id: '50', type: 'RAW_MATERIAL', code: '2601', name: 'CHIA EM GRAOS 25KG', category: 'Grãos', unit: 'SC', safetyStock: 2, minStock: 5, monthlyConsumption: 60, currentStock: 10, costPrice: 320.00, salePrice: 480.00, previousCostPrice: 320.00, costHistory: [{price: 320, date: '2024-05-01T10:00:00Z'}] },
-  { id: '51', type: 'RAW_MATERIAL', code: '2701', name: 'LINHAÇA MARROM 25KG', category: 'Grãos', unit: 'SC', safetyStock: 3, minStock: 6, monthlyConsumption: 80, currentStock: 12, costPrice: 115.00, salePrice: 175.00, previousCostPrice: 115.00, costHistory: [{price: 115, date: '2024-05-01T10:00:00Z'}] },
-  { id: '52', type: 'RAW_MATERIAL', code: '2801', name: 'GERGELIM BRANCO 25KG', category: 'Grãos', unit: 'SC', safetyStock: 3, minStock: 6, monthlyConsumption: 80, currentStock: 5, costPrice: 380.00, salePrice: 570.00, previousCostPrice: 380.00, costHistory: [{price: 380, date: '2024-05-01T10:00:00Z'}] },
-  { id: '53', type: 'RAW_MATERIAL', code: '2901', name: 'AMENDOIM CRU 25KG', category: 'Grãos', unit: 'SC', safetyStock: 10, minStock: 25, monthlyConsumption: 500, currentStock: 40, costPrice: 245.00, salePrice: 370.00, previousCostPrice: 245.00, costHistory: [{price: 245, date: '2024-05-01T10:00:00Z'}] },
-  { id: '54', type: 'RAW_MATERIAL', code: '3001', name: 'CASTANHA DO PARÁ 20KG', category: 'Grãos', unit: 'CX', safetyStock: 2, minStock: 5, monthlyConsumption: 100, currentStock: 4, costPrice: 1200.00, salePrice: 1800.00, previousCostPrice: 1200.00, costHistory: [{price: 1200, date: '2024-05-01T10:00:00Z'}] },
-  { id: '55', type: 'RAW_MATERIAL', code: '3101', name: 'CASTANHA DE CAJU 22KG', category: 'Grãos', unit: 'CX', safetyStock: 2, minStock: 5, monthlyConsumption: 100, currentStock: 8, costPrice: 1100.00, salePrice: 1650.00, previousCostPrice: 1100.00, costHistory: [{price: 1100, date: '2024-05-01T10:00:00Z'}] },
-  { id: '56', type: 'RAW_MATERIAL', code: '3201', name: 'NOZES QUARTZ 10KG', category: 'Grãos', unit: 'CX', safetyStock: 1, minStock: 3, monthlyConsumption: 50, currentStock: 2, costPrice: 950.00, salePrice: 1425.00, previousCostPrice: 950.00, costHistory: [{price: 950, date: '2024-05-01T10:00:00Z'}] },
-  { id: '57', type: 'RAW_MATERIAL', code: '3301', name: 'FRUTAS CRISTALIZADAS 10KG', category: 'Outros', unit: 'CX', safetyStock: 5, minStock: 15, monthlyConsumption: 200, currentStock: 18, costPrice: 145.00, salePrice: 220.00, previousCostPrice: 145.00, costHistory: [{price: 145, date: '2024-05-01T10:00:00Z'}] },
-  { id: '58', type: 'RAW_MATERIAL', code: '3401', name: 'UVA PASSA PRETA 10KG', category: 'Outros', unit: 'CX', safetyStock: 5, minStock: 15, monthlyConsumption: 200, currentStock: 20, costPrice: 165.00, salePrice: 250.00, previousCostPrice: 165.00, costHistory: [{price: 165, date: '2024-05-01T10:00:00Z'}] },
-  { id: '59', type: 'RAW_MATERIAL', code: '3501', name: 'COCO RALADO 10KG', category: 'Outros', unit: 'FD', safetyStock: 5, minStock: 10, monthlyConsumption: 150, currentStock: 12, costPrice: 185.00, salePrice: 280.00, previousCostPrice: 185.00, costHistory: [{price: 185, date: '2024-05-01T10:00:00Z'}] },
-  { id: '60', type: 'RAW_MATERIAL', code: '3601', name: 'ESSENCIA DE BAUNILHA 5L', category: 'Outros', unit: 'BB', safetyStock: 2, minStock: 5, monthlyConsumption: 30, currentStock: 4, costPrice: 95.00, salePrice: 145.00, previousCostPrice: 95.00, costHistory: [{price: 95, date: '2024-05-01T10:00:00Z'}] },
+  // --- MATÉRIA PRIMA (INSUMOS INDUSTRIAIS - MOLHOS E BASES) ---
+  
+  // INSUMOS PARA PROCESSAMENTO (Bases Químicas e Espessantes para Molhos)
+  createRawMaterialFromPDF('SN-M1', 'AMIDO DE MILHO MODIFICADO 25kg', 'SC', 20, 40, 800, 150, 'Insumos para Processamento'),
+  createRawMaterialFromPDF('SN-M2', 'GOMA XANTANA 80 MESH 25kg', 'SC', 5, 10, 50, 12, 'Insumos para Processamento'),
+  createRawMaterialFromPDF('SN-M3', 'CORANTE CARAMELO IV (LIQUIDO) 25kg', 'BB', 10, 20, 200, 45, 'Insumos para Processamento'),
+  createRawMaterialFromPDF('SN-M4', 'EXTRATO DE MALTE CONCENTRADO 25kg', 'BB', 5, 15, 100, 20, 'Insumos para Processamento'),
+  createRawMaterialFromPDF('SN-M5', 'AÇÚCAR CRISTAL INDUSTRIAL 50kg', 'SC', 50, 100, 2000, 450, 'Insumos para Processamento'),
+  createRawMaterialFromPDF('SN-M6', 'POLPA DE PIMENTA VERMELHA (FERMENTADA) 180kg', 'BB', 2, 5, 10, 3, 'Insumos para Processamento'),
+  createRawMaterialFromPDF('SN-M7', 'PIMENTA MALAGUETA EM SALMOURA 100kg', 'BB', 3, 8, 15, 6, 'Insumos para Processamento'),
+
+  // ESPECIARIAS E CONDIMENTOS
+  createRawMaterialFromPDF('34', 'SEMENTE DE URUCUM (LIMPA) SC 50kg', 'SC', 20, 50, 2000, 150, 'Especiarias e Condimentos'),
+  createRawMaterialFromPDF('2170', 'AÇAFRÃO RAIZ TIPO A SC 25Kg', 'SC', 10, 20, 500, 45, 'Especiarias e Condimentos'),
+  createRawMaterialFromPDF('2097', 'CANELA EM CASCA VIETNAM 25KG', 'CX', 5, 10, 150, 12, 'Especiarias e Condimentos'),
+  createRawMaterialFromPDF('S/N-P1', 'PIMENTA DO REINO EM GRÃO SC 25kg', 'SC', 15, 30, 800, 60, 'Especiarias e Condimentos'),
+  createRawMaterialFromPDF('S/N-C1', 'COMINHO EM GRÃO SC 25kg', 'SC', 10, 25, 600, 40, 'Especiarias e Condimentos'),
+
+  // QUÍMICOS E CONSERVANTES
+  createRawMaterialFromPDF('252', 'ÁCIDO CÍTRICO ANIDRO 25 KG', 'SC', 5, 10, 100, 15, 'Químicos e Conservantes'),
+  createRawMaterialFromPDF('1687', 'BENZOATO DE SODIO SC 25 KG', 'SC', 3, 6, 50, 10, 'Químicos e Conservantes'),
+  createRawMaterialFromPDF('525', 'BICARBONATO DE SÓDIO GRAU ALIM. 25kg', 'SC', 10, 20, 400, 35, 'Químicos e Conservantes'),
+  createRawMaterialFromPDF('S/N-Q1', 'SORBATO DE POTASSIO 25kg', 'SC', 2, 5, 40, 7, 'Químicos e Conservantes'),
+
+  // GRÃOS E CEREAIS
+  createRawMaterialFromPDF('1527', 'CANJICA BRANCA (CRUA) SC 25kg', 'SC', 100, 300, 3000, 850, 'Grãos e Cereais'),
+  createRawMaterialFromPDF('190', 'ALPISTE LIMPO SC 45,36kg', 'SC', 50, 100, 1500, 420, 'Grãos e Cereais'),
+  createRawMaterialFromPDF('S/N-G1', 'MILHO PIPOCA PREMIUM SC 25kg', 'SC', 80, 200, 2500, 600, 'Grãos e Cereais'),
+
+  // ÓLEOS E BASES LÍQUIDAS
+  createRawMaterialFromPDF('139', 'AZEITE DE DENDÊ (BRUTO) BB 200L', 'BB', 5, 15, 3000, 10, 'Óleos e Bases Líquidas'),
+  createRawMaterialFromPDF('2038', 'KETCHUP BASE INDUSTRIAL 200 L', 'BB', 2, 5, 500, 3, 'Óleos e Bases Líquidas'),
+  createRawMaterialFromPDF('S/N-L1', 'VINAGRE DE ÁLCOOL (BULK) 1000L', 'L', 500, 2000, 15000, 5000, 'Óleos e Bases Líquidas'),
+  createRawMaterialFromPDF('S/N-L2', 'EXTRATO DE TOMATE CONCENTRADO 20kg', 'BB', 10, 30, 800, 45, 'Óleos e Bases Líquidas'),
+
+  // --- PRODUTOS ACABADOS ---
+  createFinishedGoodFromPDF('229', 'ALHO PICADO TAPAJOS FD 30x200g', 'FD', '7897457800191', '17897457800198', 'Alho Picado', 30),
+  createFinishedGoodFromPDF('1660', 'MOLHO INGLÊS TAPAJÓS 12x150ml', 'FD', '7897457800627', '17897457800624', 'Molhos', 60),
+  createFinishedGoodFromPDF('1666', 'MOLHO SHOYU TAPAJÓS 12x150ml', 'FD', '7897457801020', '17897457801027', 'Molhos', 60),
+  createFinishedGoodFromPDF('1903', 'KETCHUP TRADICIONAL TAPAJÓS Frd. 12x200g', 'FD', '7897457801143', '17897457801140', 'Molhos', 60),
+  createFinishedGoodFromPDF('1908', 'MOSTARDA TRADICIONAL TAPAJÓS Frd. 12x200g', 'FD', '7897457801136', '17897457801133', 'Molhos', 60),
 ];

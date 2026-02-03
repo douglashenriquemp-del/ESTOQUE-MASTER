@@ -24,6 +24,12 @@ interface SortConfig {
   direction: 'asc' | 'desc';
 }
 
+interface ToastNotification {
+  id: string;
+  message: string;
+  type: 'error' | 'success' | 'warning';
+}
+
 interface ProductCardProps {
   product: Product;
   canEdit: boolean;
@@ -31,6 +37,7 @@ interface ProductCardProps {
   onExit: (p: Product) => void;
   onEdit: (p: Product) => void;
   onDelete: (p: Product) => void;
+  onExportPDF: (p: Product) => void;
   currencyFormatter: Intl.NumberFormat;
 }
 
@@ -41,6 +48,7 @@ const ProductCard = React.memo<ProductCardProps>(({
   onExit, 
   onEdit, 
   onDelete,
+  onExportPDF,
   currencyFormatter 
 }) => {
   const [view, setView] = useState<CardInternalView>('stock');
@@ -137,16 +145,32 @@ const ProductCard = React.memo<ProductCardProps>(({
           </div>
         </div>
 
-        {canEdit ? (
+        <div className="flex flex-col gap-2">
+          {canEdit ? (
+            <div className="flex gap-2">
+              <button onClick={() => onEntry(product)} className="flex-1 bg-emerald-600 text-white py-4 rounded-[20px] text-[9px] font-black uppercase shadow-lg active:scale-95 transition-all hover:bg-emerald-700">Entrada</button>
+              <button onClick={() => onExit(product)} className="flex-1 bg-slate-900 text-white py-4 rounded-[20px] text-[9px] font-black uppercase shadow-lg active:scale-95 transition-all hover:bg-black">Saída</button>
+            </div>
+          ) : (
+            <div className="bg-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-widest py-4 rounded-[20px] flex items-center justify-center cursor-not-allowed opacity-60">Somente Leitura</div>
+          )}
+          
           <div className="flex gap-2">
-            <button onClick={() => onEntry(product)} className="flex-1 bg-emerald-600 text-white py-4 rounded-[20px] text-[9px] font-black uppercase shadow-lg active:scale-95 transition-all hover:bg-emerald-700">Entrada</button>
-            <button onClick={() => onExit(product)} className="flex-1 bg-slate-900 text-white py-4 rounded-[20px] text-[9px] font-black uppercase shadow-lg active:scale-95 transition-all hover:bg-black">Saída</button>
-            <button onClick={() => onEdit(product)} className="p-4 bg-indigo-50 text-indigo-600 rounded-[20px] hover:bg-indigo-100 transition-all active:scale-95"><EditIcon /></button>
-            <button onClick={() => onDelete(product)} className="p-4 bg-red-50 text-red-600 rounded-[20px] hover:bg-red-100 transition-all active:scale-95"><TrashIcon /></button>
+            <button 
+              onClick={() => onExportPDF(product)} 
+              className="flex-1 bg-indigo-600 text-white py-4 rounded-[20px] text-[9px] font-black uppercase shadow-md active:scale-95 transition-all hover:bg-indigo-700 flex items-center justify-center gap-2"
+              title="Gerar Relatório Detalhado do Produto"
+            >
+              <FileTextIcon /> Relatório Detalhado
+            </button>
+            {canEdit && (
+              <>
+                <button onClick={() => onEdit(product)} className="p-4 bg-indigo-50 text-indigo-600 rounded-[20px] hover:bg-indigo-100 transition-all active:scale-95"><EditIcon /></button>
+                <button onClick={() => onDelete(product)} className="p-4 bg-red-50 text-red-600 rounded-[20px] hover:bg-red-100 transition-all active:scale-95"><TrashIcon /></button>
+              </>
+            )}
           </div>
-        ) : (
-          <div className="bg-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-widest py-4 rounded-[20px] flex items-center justify-center cursor-not-allowed opacity-60">Visualização Apenas</div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -177,12 +201,6 @@ const AuthScreen: React.FC<{ onAuth: (u: User) => void }> = ({ onAuth }) => {
         alert(`Credenciais inválidas. Tentativa ${attempts}/5`);
       }
     } else {
-      const admins = users.filter(x => x.role === 'ADMIN').length;
-      const viewers = users.filter(x => x.role === 'VIEWER').length;
-
-      if (form.role === 'ADMIN' && admins >= 3) return alert("Limite de 3 administradores atingido.");
-      if (form.role === 'VIEWER' && viewers >= 5) return alert("Limite de 5 logins de visualização atingido.");
-
       const newUser: User = { id: crypto.randomUUID(), ...form };
       const updated = [...users, newUser];
       storageService.saveUsers(updated);
@@ -232,43 +250,19 @@ const AuthScreen: React.FC<{ onAuth: (u: User) => void }> = ({ onAuth }) => {
   );
 };
 
-const TutorialOverlay: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
-  const [step, setStep] = useState(0);
-  const steps = [
-    { title: "Gestão Profissional", desc: "Controle insumos e produtos acabados com precisão industrial.", icon: <PackageIcon /> },
-    { title: "Prioridade Crítica", desc: "Itens com estoque baixo aparecem automaticamente no topo da lista.", icon: <AlertTriangleIcon /> },
-    { title: "Dias de Cobertura", desc: "Saiba exatamente por quantos dias seu estoque atual irá durar baseado no consumo mensal.", icon: <TrendingUpIcon /> },
-    { title: "Dashboard Inteligente", desc: "Acompanhe o valor financeiro do seu estoque por categoria e tipo de produto.", icon: <StatsIcon /> }
-  ];
-
-  return (
-    <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[200] flex items-center justify-center p-6 text-center">
-      <div className="bg-white rounded-[56px] w-full max-w-lg p-14 shadow-2xl animate-in fade-in zoom-in duration-500">
-        <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-inner scale-125">{steps[step].icon}</div>
-        <h2 className="text-3xl font-black mb-6 uppercase tracking-tighter text-slate-800">{steps[step].title}</h2>
-        <p className="text-slate-500 font-medium text-base mb-12">{steps[step].desc}</p>
-        <div className="flex gap-4 items-center">
-          <div className="flex gap-2 flex-1">{steps.map((_, i) => (<div key={i} className={`h-2 rounded-full transition-all duration-300 ${i === step ? 'w-8 bg-indigo-600' : 'w-2 bg-slate-200'}`}></div>))}</div>
-          <button onClick={() => step < steps.length - 1 ? setStep(step + 1) : onComplete()} className="bg-indigo-600 text-white px-10 py-5 rounded-[24px] font-black text-xs uppercase shadow-xl hover:bg-indigo-700">{step === steps.length - 1 ? "Entrar" : "Próximo"}</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [currentView, setCurrentView] = useState<ViewType>('inventory');
-  const [activeGroup, setActiveGroup] = useState<ProductGroup>('RAW_MATERIAL');
+  const [activeGroup, setActiveGroup] = useState<ProductGroup>('FINISHED_GOOD');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [activeAlerts, setActiveAlerts] = useState<AlertType[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'name', direction: 'asc' });
+  const [toasts, setToasts] = useState<ToastNotification[]>([]);
 
-  // Estados para filtros de histórico
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -284,7 +278,8 @@ const App: React.FC = () => {
   const cf = useMemo(() => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }), []);
 
   useEffect(() => {
-    setProducts(storageService.getProducts());
+    const savedProducts = storageService.getProducts();
+    setProducts(savedProducts);
     setTransactions(storageService.getTransactions());
     if (!localStorage.getItem('tutorial_completed')) setShowTutorial(true);
   }, []);
@@ -292,33 +287,13 @@ const App: React.FC = () => {
   useEffect(() => { storageService.saveProducts(products); }, [products]);
   useEffect(() => { storageService.saveTransactions(transactions); }, [transactions]);
 
+  // Derived Values - Moving before callbacks to fix 'used before its declaration' error
   const canEdit = useMemo(() => currentUser?.role === 'ADMIN', [currentUser]);
 
-  const handleEntry = useCallback((prod: Product) => {
-    setSelectedProduct(prod);
-    setModalType(TRANSACTION_TYPES.ENTRY);
-    setTransCost(prod.costPrice);
-  }, []);
-
-  const handleExit = useCallback((prod: Product) => {
-    setSelectedProduct(prod);
-    setModalType(TRANSACTION_TYPES.EXIT);
-  }, []);
-
-  const handleEdit = useCallback((prod: Product) => {
-    setSelectedProduct(prod);
-    setForm(prod);
-    setModalType('edit');
-  }, []);
-
-  const handleDeleteClick = useCallback((prod: Product) => {
-    setSelectedProduct(prod);
-    setModalType('delete');
-  }, []);
-
-  const toggleAlert = (alert: AlertType) => {
-    setActiveAlerts(prev => prev.includes(alert) ? prev.filter(a => a !== alert) : [...prev, alert]);
-  };
+  const categories = useMemo(() => {
+    const activeProducts = products.filter(p => p.type === activeGroup);
+    return Array.from(new Set(activeProducts.map(p => p.category))).sort();
+  }, [products, activeGroup]);
 
   const filteredProducts = useMemo(() => {
     if (currentView !== 'inventory') return [];
@@ -370,10 +345,6 @@ const App: React.FC = () => {
     });
   }, [transactions, startDate, endDate]);
 
-  const categories = useMemo(() => {
-    return Array.from(new Set(products.map(p => p.category))).sort();
-  }, [products]);
-
   const statsData = useMemo(() => {
     const dataByCat: Record<string, { raw: number, finished: number }> = {};
     products.forEach(p => {
@@ -395,6 +366,50 @@ const App: React.FC = () => {
     };
   }, [products]);
 
+  // Callbacks and Handlers
+  const addToast = useCallback((message: string, type: 'error' | 'success' | 'warning' = 'success') => {
+    const id = crypto.randomUUID();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 5000);
+  }, []);
+
+  const handleEntry = useCallback((prod: Product) => {
+    setSelectedProduct(prod);
+    setModalType(TRANSACTION_TYPES.ENTRY);
+    setTransCost(prod.costPrice);
+  }, []);
+
+  const handleExit = useCallback((prod: Product) => {
+    setSelectedProduct(prod);
+    setModalType(TRANSACTION_TYPES.EXIT);
+  }, []);
+
+  const handleEdit = useCallback((prod: Product) => {
+    setSelectedProduct(prod);
+    setForm(prod);
+    setModalType('edit');
+  }, []);
+
+  const handleDeleteClick = useCallback((prod: Product) => {
+    setSelectedProduct(prod);
+    setModalType('delete');
+  }, []);
+
+  const handleExportPDF = useCallback((prod: Product) => {
+    const productTransactions = transactions.filter(t => t.productId === prod.id);
+    exportService.exportSingleProductPDF(prod, productTransactions);
+  }, [transactions]);
+
+  const handleFullInventoryPDF = useCallback(() => {
+    exportService.exportFullInventoryPDF(filteredProducts);
+  }, [filteredProducts]);
+
+  const toggleAlert = (alert: AlertType) => {
+    setActiveAlerts(prev => prev.includes(alert) ? prev.filter(a => a !== alert) : [...prev, alert]);
+  };
+
   const handleTransaction = () => {
     if (!selectedProduct || !currentUser || !modalType) return;
     const isEntry = modalType === TRANSACTION_TYPES.ENTRY;
@@ -404,22 +419,25 @@ const App: React.FC = () => {
       unitCost: isEntry ? transCost : selectedProduct.costPrice,
       date: new Date().toISOString(), notes: '', userName: currentUser.name
     };
+    
     setTransactions(prev => [newTrans, ...prev]);
     setProducts(prev => prev.map(p => {
       if (p.id !== selectedProduct.id) return p;
       let newStock = p.currentStock;
-      if (modalType === TRANSACTION_TYPES.ENTRY) {
-        newStock += quantity;
-      } else if (modalType === TRANSACTION_TYPES.EXIT) {
-        newStock -= quantity;
+      if (modalType === TRANSACTION_TYPES.ENTRY) newStock += quantity;
+      else if (modalType === TRANSACTION_TYPES.EXIT) newStock -= quantity;
+      
+      const updatedStock = Math.max(0, newStock);
+      
+      if (updatedStock === 0 && p.currentStock > 0) {
+        addToast(`ITEM ESGOTADO: ${p.name}`, 'error');
       }
-      const newHistory = isEntry ? [...(p.costHistory || []), { price: transCost, date: new Date().toISOString() }] : (p.costHistory || []);
+      
       return { 
         ...p, 
-        currentStock: Math.max(0, newStock), 
+        currentStock: updatedStock, 
         previousCostPrice: isEntry && transCost !== p.costPrice ? p.costPrice : p.previousCostPrice,
-        costPrice: isEntry ? transCost : p.costPrice, 
-        costHistory: newHistory 
+        costPrice: isEntry ? transCost : p.costPrice
       };
     }));
     setModalType(null); setQuantity(0); setSelectedProduct(null);
@@ -436,23 +454,57 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen md:pl-64 bg-slate-50 pb-safe pt-safe">
-      {showTutorial && <TutorialOverlay onComplete={() => { setShowTutorial(false); localStorage.setItem('tutorial_completed', 'true'); }} />}
-      
+      <div className="fixed top-6 right-6 z-[200] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+        {toasts.map(t => (
+          <div key={t.id} className={`pointer-events-auto flex items-center gap-4 p-5 rounded-[24px] shadow-2xl animate-in slide-in-from-right-10 duration-500 bg-white border-2 ${t.type === 'error' ? 'border-red-100' : 'border-emerald-100'}`}>
+            <div className={`p-3 rounded-xl ${t.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+              <AlertTriangleIcon />
+            </div>
+            <p className="text-[10px] font-black uppercase text-slate-800 tracking-tight flex-1">{t.message}</p>
+            <button onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))} className="text-slate-300 hover:text-slate-600 transition-colors">
+              <XIcon />
+            </button>
+            <div className="absolute bottom-0 left-0 h-1 bg-indigo-500 animate-notice-progress rounded-full opacity-30"></div>
+          </div>
+        ))}
+      </div>
+
       <nav className="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-200 p-8 hidden md:flex flex-col z-50">
         <div className="flex items-center gap-4 mb-14 text-indigo-600 font-black text-xl">
           <div className="bg-indigo-600 text-white p-3 rounded-[18px] shadow-lg shadow-indigo-200"><PackageIcon /></div>
-          <span className="tracking-tighter uppercase text-left">Estoque Master</span>
+          <span className="tracking-tighter uppercase text-left leading-tight">Estoque<br/>Master</span>
         </div>
         <div className="space-y-3 flex-1">
-          <button onClick={() => setCurrentView('inventory')} className={`w-full flex items-center gap-4 p-5 rounded-[22px] font-black text-[10px] uppercase transition-all ${currentView === 'inventory' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50'}`}><PackageIcon /> Inventário</button>
-          <button onClick={() => setCurrentView('stats')} className={`w-full flex items-center gap-4 p-5 rounded-[22px] font-black text-[10px] uppercase transition-all ${currentView === 'stats' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50'}`}><StatsIcon /> Dashboards</button>
-          <button onClick={() => setCurrentView('history')} className={`w-full flex items-center gap-4 p-5 rounded-[22px] font-black text-[10px] uppercase transition-all ${currentView === 'history' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50'}`}><HistoryIcon /> Atividades</button>
+          <button 
+            onClick={() => { setCurrentView('inventory'); setActiveGroup('RAW_MATERIAL'); setSelectedCategory('Todas'); }} 
+            className={`w-full flex items-center gap-4 p-5 rounded-[22px] font-black text-[10px] uppercase transition-all ${currentView === 'inventory' && activeGroup === 'RAW_MATERIAL' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+            <BarcodeIcon /> Matéria Prima
+          </button>
+          <button 
+            onClick={() => { setCurrentView('inventory'); setActiveGroup('FINISHED_GOOD'); setSelectedCategory('Todas'); }} 
+            className={`w-full flex items-center gap-4 p-5 rounded-[22px] font-black text-[10px] uppercase transition-all ${currentView === 'inventory' && activeGroup === 'FINISHED_GOOD' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+            <PackageIcon /> Produto Acabado
+          </button>
+          <button 
+            onClick={() => setCurrentView('stats')} 
+            className={`w-full flex items-center gap-4 p-5 rounded-[22px] font-black text-[10px] uppercase transition-all ${currentView === 'stats' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+            <StatsIcon /> Dashboards
+          </button>
+          <button 
+            onClick={() => setCurrentView('history')} 
+            className={`w-full flex items-center gap-4 p-5 rounded-[22px] font-black text-[10px] uppercase transition-all ${currentView === 'history' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+            <HistoryIcon /> Atividades
+          </button>
         </div>
         <div className="pt-8 border-t border-slate-100 flex items-center gap-4">
           <div className="w-12 h-12 rounded-[18px] bg-indigo-600 text-white flex items-center justify-center font-black shadow-lg shadow-indigo-100 text-lg uppercase">{currentUser.name[0]}</div>
           <div className="flex-1 overflow-hidden text-left">
             <p className="text-[10px] font-black uppercase text-slate-800 truncate">{currentUser.name}</p>
-            <p className="text-[8px] font-bold uppercase text-slate-400 tracking-widest">{currentUser.role === 'ADMIN' ? 'Admin' : 'Visualizador'}</p>
+            <p className="text-[8px] font-bold uppercase text-slate-400 tracking-widest">{currentUser.role === 'ADMIN' ? 'Admin' : 'Leitor'}</p>
           </div>
           <button onClick={() => setCurrentUser(null)} className="p-3 text-slate-300 hover:text-red-500 transition-colors bg-slate-50 rounded-xl"><XIcon /></button>
         </div>
@@ -463,9 +515,13 @@ const App: React.FC = () => {
           <div className="relative flex-1 md:w-96 group">
             <input type="text" placeholder="Buscar por Nome, Código, EAN..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-slate-100 rounded-[22px] px-8 py-4.5 text-sm outline-none font-bold border-2 border-transparent focus:bg-white focus:border-indigo-600 transition-all shadow-inner" />
           </div>
-          {canEdit && currentView === 'inventory' && (
-            <button onClick={() => { setForm({ type: activeGroup, category: 'Especiarias', unit: 'UN' }); setModalType('add'); }} className="bg-indigo-600 text-white px-10 py-4.5 rounded-[22px] font-black text-[10px] uppercase shadow-xl hover:bg-indigo-700 active:scale-95 transition-all w-full md:w-auto flex items-center justify-center gap-3"><PlusIcon /> Novo Registro</button>
-          )}
+          <div className="flex items-center gap-4">
+             <button onClick={handleFullInventoryPDF} className="bg-red-600 text-white px-8 py-4.5 rounded-[22px] text-[10px] font-black uppercase shadow-xl flex items-center gap-3 hover:bg-red-700 transition-all active:scale-95" title="Relatório de Estoque Completo"><FileTextIcon /> PDF Geral</button>
+             <button onClick={() => exportService.exportToExcel(products, transactions, startDate, endDate)} className="bg-slate-900 text-white px-8 py-4.5 rounded-[22px] text-[10px] font-black uppercase shadow-xl flex items-center gap-3 hover:bg-black transition-all active:scale-95"><DownloadIcon /> Excel Filtrado</button>
+             {canEdit && currentView === 'inventory' && (
+               <button onClick={() => { setForm({ type: activeGroup, category: categories[0] || 'Diversos', unit: 'UN' }); setModalType('add'); }} className="bg-indigo-600 text-white px-10 py-4.5 rounded-[22px] font-black text-[10px] uppercase shadow-xl hover:bg-indigo-700 active:scale-95 transition-all w-full md:w-auto flex items-center justify-center gap-3"><PlusIcon /> Novo Cadastro</button>
+             )}
+          </div>
         </div>
       </header>
 
@@ -473,22 +529,6 @@ const App: React.FC = () => {
         {currentView === 'inventory' && (
           <>
             <div className="flex flex-col gap-6 mb-10">
-               {/* Seletor de Tipo de Produto (Abas Principais) */}
-               <div className="flex p-1.5 bg-slate-200 rounded-[32px] w-full max-w-lg mx-auto md:mx-0 shadow-inner">
-                  <button 
-                    onClick={() => setActiveGroup('RAW_MATERIAL')}
-                    className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[26px] font-black text-[10px] uppercase transition-all ${activeGroup === 'RAW_MATERIAL' ? 'bg-white text-indigo-600 shadow-xl' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    <BarcodeIcon /> Matéria Prima
-                  </button>
-                  <button 
-                    onClick={() => setActiveGroup('FINISHED_GOOD')}
-                    className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[26px] font-black text-[10px] uppercase transition-all ${activeGroup === 'FINISHED_GOOD' ? 'bg-white text-indigo-600 shadow-xl' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    <PackageIcon /> Produtos Acabados
-                  </button>
-               </div>
-
                <div className="flex flex-wrap items-center gap-4">
                   <div className="bg-white border-2 border-slate-100 rounded-2xl px-6 py-3 text-[10px] font-black shadow-sm flex items-center gap-2">
                     <span className="text-slate-300 uppercase">Categoria:</span>
@@ -497,22 +537,16 @@ const App: React.FC = () => {
                       {categories.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-
                   <div className="ml-auto flex items-center bg-white border-2 border-slate-100 rounded-[18px] p-1 shadow-sm">
-                    <button onClick={() => setViewMode('grid')} className={`p-3 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`} title="Cards"><PackageIcon /></button>
-                    <button onClick={() => setViewMode('list')} className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`} title="Lista"><FileTextIcon /></button>
+                    <button onClick={() => setViewMode('grid')} className={`p-3 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}><PackageIcon /></button>
+                    <button onClick={() => setViewMode('list')} className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}><FileTextIcon /></button>
                   </div>
-                  <button onClick={() => exportService.exportToExcel(products, transactions)} className="bg-slate-900 text-white px-8 py-4 rounded-[22px] text-[10px] font-black uppercase shadow-xl flex items-center gap-3 hover:bg-black transition-all active:scale-95 tracking-widest"><DownloadIcon /> Excel</button>
                </div>
 
                <div className="flex flex-wrap items-center gap-3">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-2"><FilterIcon /> Alertas:</span>
-                  <button onClick={() => toggleAlert('CRITICAL')} className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-wider border-2 transition-all flex items-center gap-2 ${activeAlerts.includes('CRITICAL') ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border-slate-100 text-slate-400 hover:border-red-200'}`}>Crítico 🔴</button>
-                  <button onClick={() => toggleAlert('ATTENTION')} className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-wider border-2 transition-all flex items-center gap-2 ${activeAlerts.includes('ATTENTION') ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-100' : 'bg-white border-slate-100 text-slate-400 hover:border-orange-200'}`}>Atenção 🟠</button>
-                  <button onClick={() => toggleAlert('COST_ALARM')} className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-wider border-2 transition-all flex items-center gap-2 ${activeAlerts.includes('COST_ALARM') ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200'}`}>Custo 📈</button>
-                  {activeAlerts.length > 0 && (
-                    <button onClick={() => setActiveAlerts([])} className="text-[9px] font-black text-slate-300 uppercase hover:text-red-500 transition-colors px-3 py-2 flex items-center gap-1"><XIcon /> Limpar</button>
-                  )}
+                  <button onClick={() => toggleAlert('CRITICAL')} className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-wider border-2 transition-all ${activeAlerts.includes('CRITICAL') ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>Crítico 🔴</button>
+                  <button onClick={() => toggleAlert('ATTENTION')} className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-wider border-2 transition-all ${activeAlerts.includes('ATTENTION') ? 'bg-orange-500 border-orange-500 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>Atenção 🟠</button>
                </div>
             </div>
 
@@ -520,28 +554,22 @@ const App: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {filteredProducts.map(p => (
                   <ProductCard key={p.id} product={p} canEdit={canEdit} currencyFormatter={cf}
-                    onEntry={handleEntry}
-                    onExit={handleExit}
-                    onEdit={handleEdit}
-                    onDelete={handleDeleteClick} />
+                    onEntry={handleEntry} onExit={handleExit} onEdit={handleEdit} onDelete={handleDeleteClick} onExportPDF={handleExportPDF} />
                 ))}
-                {filteredProducts.length === 0 && (
-                  <div className="col-span-full py-20 text-center text-slate-300 font-black uppercase text-xs">Nenhum {activeGroup === 'RAW_MATERIAL' ? 'insumo' : 'produto acabado'} encontrado</div>
-                )}
               </div>
             ) : (
               <div className="bg-white rounded-[40px] overflow-hidden border-2 border-slate-100 shadow-sm overflow-x-auto">
                 <table className="w-full text-left whitespace-nowrap">
                   <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase">
                     <tr>
-                      <th className="px-6 py-6">Cód / EAN</th>
-                      <th className="px-6 py-6">Descrição</th>
-                      <th className="px-6 py-6 text-center">Mínimo</th>
-                      <th className="px-6 py-6 text-center">Consumo Mensal</th>
+                      <th className="px-6 py-6">Código / EAN</th>
+                      <th className="px-6 py-6">Nome do Item</th>
+                      <th className="px-6 py-6 text-center">Estoque Mín.</th>
+                      <th className="px-6 py-6 text-center">Consumo Mês</th>
                       <th className="px-6 py-6 text-center">Saldo</th>
                       <th className="px-6 py-6 text-center">Autonomia</th>
                       <th className="px-6 py-6 text-right">Custo Un.</th>
-                      <th className="px-6 py-6 text-right">Preço Venda</th>
+                      <th className="px-6 py-6 text-right">P. Venda</th>
                       <th className="px-6 py-6 text-right">Ações</th>
                     </tr>
                   </thead>
@@ -549,38 +577,23 @@ const App: React.FC = () => {
                     {filteredProducts.map(p => (
                       <tr key={p.id} className={`hover:bg-indigo-50/30 transition-all ${p.currentStock <= p.minStock ? 'bg-red-50/20' : ''}`}>
                         <td className="px-6 py-5 text-[10px] font-bold text-slate-400">#{p.code}<br/>{p.ean || '---'}</td>
-                        <td className="px-6 py-5 text-xs font-black uppercase text-slate-800">
-                          <div className="flex flex-col text-left">
-                            <div className="flex items-center gap-2">
-                              <span>{p.name}</span>
-                              {p.previousCostPrice !== undefined && p.costPrice > p.previousCostPrice && (
-                                <span className="text-[10px]" title="Custo subiu">📈</span>
-                              )}
-                            </div>
-                            <span className="text-[8px] font-bold text-slate-300 mt-0.5">{p.category}</span>
-                          </div>
-                        </td>
+                        <td className="px-6 py-5 text-xs font-black uppercase text-slate-800">{p.name}<br/><span className="text-[8px] font-bold text-slate-300">{p.category}</span></td>
                         <td className="px-6 py-5 text-center text-[11px] font-bold text-slate-500">{p.minStock} {p.unit}</td>
                         <td className="px-6 py-5 text-center text-[11px] font-bold text-slate-500">{p.monthlyConsumption} {p.unit}</td>
-                        <td className="px-6 py-5 text-center">
-                          <span className={`font-black text-[13px] ${p.currentStock <= p.minStock ? 'text-red-600' : 'text-slate-800'}`}>
-                            {p.currentStock} {p.unit}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5 text-center text-[10px] font-bold text-slate-500">
-                          {p.monthlyConsumption > 0 ? `${Math.round((p.currentStock / p.monthlyConsumption) * 30)} dias` : '∞'}
-                        </td>
+                        <td className="px-6 py-5 text-center"><span className={`font-black text-[13px] ${p.currentStock <= p.minStock ? 'text-red-600' : 'text-slate-800'}`}>{p.currentStock} {p.unit}</span></td>
+                        <td className="px-6 py-5 text-center text-[10px] font-bold text-slate-500">{p.monthlyConsumption > 0 ? `${Math.round((p.currentStock / p.monthlyConsumption) * 30)}d` : '∞'}</td>
                         <td className="px-6 py-5 text-right text-[11px] font-black text-slate-600">{cf.format(p.costPrice)}</td>
                         <td className="px-6 py-5 text-right text-[11px] font-black text-indigo-600">{cf.format(p.salePrice)}</td>
                         <td className="px-6 py-5 text-right">
                           <div className="flex justify-end gap-1">
+                             <button onClick={() => handleExportPDF(p)} className="text-indigo-600 p-2 hover:bg-indigo-50 rounded-lg" title="Gerar Relatório Detalhado do Produto"><FileTextIcon /></button>
                              {canEdit ? (
                                <>
-                                 <button onClick={() => handleEntry(p)} className="text-emerald-600 p-2 hover:bg-emerald-50 rounded-lg transition-colors" title="Entrada"><PlusIcon /></button>
-                                 <button onClick={() => handleEdit(p)} className="text-indigo-600 p-2 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar"><EditIcon /></button>
-                                 <button onClick={() => handleDeleteClick(p)} className="text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors" title="Excluir"><TrashIcon /></button>
+                                 <button onClick={() => handleEntry(p)} className="text-emerald-600 p-2 hover:bg-emerald-50 rounded-lg"><PlusIcon /></button>
+                                 <button onClick={() => handleEdit(p)} className="text-indigo-600 p-2 hover:bg-indigo-50 rounded-lg"><EditIcon /></button>
+                                 <button onClick={() => handleDeleteClick(p)} className="text-red-600 p-2 hover:bg-red-50 rounded-lg"><TrashIcon /></button>
                                </>
-                             ) : <span className="text-[8px] font-black text-slate-300">LEITURA</span>}
+                             ) : null}
                           </div>
                         </td>
                       </tr>
@@ -592,49 +605,69 @@ const App: React.FC = () => {
           </>
         )}
 
+        {currentView === 'history' && (
+           <div className="bg-white rounded-[40px] border-2 border-slate-100 p-10 shadow-sm animate-in fade-in slide-in-from-bottom-4 text-left">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+                <h2 className="text-2xl font-black text-slate-800 uppercase flex items-center gap-3"><HistoryIcon /> Movimentações</h2>
+                <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="outline-none text-[10px] font-black uppercase text-indigo-600 bg-transparent" />
+                  <span className="text-[10px] font-black text-slate-300 uppercase">até</span>
+                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="outline-none text-[10px] font-black uppercase text-indigo-600 bg-transparent" />
+                </div>
+              </div>
+              <div className="space-y-4">
+                {filteredTransactions.map(t => (
+                  <div key={t.id} className="flex justify-between items-center p-6 bg-slate-50 rounded-[28px] border border-slate-100">
+                    <div className="flex items-center gap-6 text-left">
+                      <div className={`p-4 rounded-2xl ${t.type === TRANSACTION_TYPES.ENTRY ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                        {t.type === TRANSACTION_TYPES.ENTRY ? <PlusIcon /> : <AlertTriangleIcon />}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-slate-800">{t.productName}</p>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase">Operador: {t.userName}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-xl font-black ${t.type === TRANSACTION_TYPES.ENTRY ? 'text-emerald-600' : 'text-red-600'}`}>{t.type === TRANSACTION_TYPES.ENTRY ? '+' : '-'}{t.quantity}</p>
+                      <p className="text-[9px] font-bold text-slate-300 uppercase">{new Date(t.date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+           </div>
+        )}
+
         {currentView === 'stats' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
             <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
               <div className="text-left">
-                <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter mb-2">Painel de Controle Financeiro</h2>
-                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Análise de valor em estoque por categoria</p>
+                <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter mb-2">Financeiro</h2>
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Valor em estoque por categoria</p>
               </div>
-              <div className="bg-white border-2 border-slate-100 rounded-3xl px-8 py-4 shadow-sm flex items-center gap-4">
-                 <span className="text-[10px] font-black text-slate-300 uppercase">Filtrar Categoria:</span>
+              <div className="bg-white border-2 border-slate-100 rounded-3xl px-8 py-4 shadow-sm">
                  <select value={statsCategoryFilter} onChange={e => setStatsCategoryFilter(e.target.value)} className="bg-transparent outline-none cursor-pointer text-indigo-600 uppercase font-black text-xs">
-                   <option value="Todas">Todas</option>
+                   <option value="Todas">Todas Categorias</option>
                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
                  </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-              <div className="bg-white p-10 rounded-[44px] shadow-sm border-2 border-indigo-50 text-left">
-                <div className="bg-indigo-100 w-12 h-12 rounded-2xl flex items-center justify-center text-indigo-600 mb-6"><TrendingUpIcon /></div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor Total (Custo)</p>
-                <p className="text-3xl font-black text-slate-800 tracking-tighter">{cf.format(globalStats.totalValue)}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 text-left">
+              <div className="bg-white p-10 rounded-[44px] shadow-sm border-2 border-indigo-50">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Valor Total (Custo)</p>
+                <p className="text-3xl font-black text-slate-800">{cf.format(globalStats.totalValue)}</p>
               </div>
-              <div className="bg-white p-10 rounded-[44px] shadow-sm border-2 border-red-50 text-left">
-                <div className="bg-red-100 w-12 h-12 rounded-2xl flex items-center justify-center text-red-600 mb-6"><AlertTriangleIcon /></div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Itens Críticos</p>
-                <p className="text-3xl font-black text-red-600 tracking-tighter">{globalStats.criticalCount} <span className="text-xs text-slate-300 font-bold uppercase ml-1">Produtos</span></p>
+              <div className="bg-white p-10 rounded-[44px] shadow-sm border-2 border-red-50">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Itens Críticos</p>
+                <p className="text-3xl font-black text-red-600">{globalStats.criticalCount}</p>
               </div>
-              <div className="bg-white p-10 rounded-[44px] shadow-sm border-2 border-slate-50 text-left">
-                <div className="bg-slate-100 w-12 h-12 rounded-2xl flex items-center justify-center text-slate-600 mb-6"><PackageIcon /></div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Volume de Estoque</p>
-                <p className="text-3xl font-black text-slate-800 tracking-tighter">{globalStats.totalItems.toLocaleString()} <span className="text-xs text-slate-300 font-bold uppercase ml-1">Unidades</span></p>
+              <div className="bg-white p-10 rounded-[44px] shadow-sm border-2 border-slate-50">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Volume de Itens</p>
+                <p className="text-3xl font-black text-slate-800">{globalStats.totalItems.toLocaleString()}</p>
               </div>
             </div>
 
             <div className="bg-white rounded-[56px] p-12 shadow-sm border-2 border-slate-100">
-               <div className="flex justify-between items-center mb-14">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Valor de Estoque por Categoria</p>
-                  <div className="flex gap-6">
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-indigo-500"></div><span className="text-[9px] font-black text-slate-400 uppercase">Matéria Prima</span></div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-500"></div><span className="text-[9px] font-black text-slate-400 uppercase">Produto Acabado</span></div>
-                  </div>
-               </div>
-
                <div className="space-y-12">
                   {statsData.map(([category, values]) => {
                     const total = values.raw + values.finished;
@@ -644,16 +677,12 @@ const App: React.FC = () => {
                     return (
                       <div key={category} className="group text-left">
                         <div className="flex justify-between items-end mb-4">
-                          <span className="text-sm font-black text-slate-800 uppercase tracking-tighter">{category}</span>
+                          <span className="text-sm font-black text-slate-800 uppercase">{category}</span>
                           <span className="text-xs font-black text-slate-400">{cf.format(total)}</span>
                         </div>
-                        <div className="flex h-6 rounded-full overflow-hidden bg-slate-50 border border-slate-100 shadow-inner group-hover:scale-[1.01] transition-transform">
-                          <div style={{ width: `${rawWidth}%` }} className="h-full bg-indigo-500 shadow-md relative group/bar">
-                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover/bar:opacity-100 transition-opacity"></div>
-                          </div>
-                          <div style={{ width: `${finWidth}%` }} className="h-full bg-emerald-500 shadow-md relative group/bar">
-                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover/bar:opacity-100 transition-opacity"></div>
-                          </div>
+                        <div className="flex h-6 rounded-full overflow-hidden bg-slate-50 border border-slate-100">
+                          <div style={{ width: `${rawWidth}%` }} className="h-full bg-indigo-500"></div>
+                          <div style={{ width: `${finWidth}%` }} className="h-full bg-emerald-500"></div>
                         </div>
                       </div>
                     );
@@ -662,112 +691,52 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-
-        {currentView === 'history' && (
-           <div className="bg-white rounded-[40px] border-2 border-slate-100 p-10 shadow-sm animate-in fade-in slide-in-from-bottom-4 text-left">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-                <h2 className="text-2xl font-black text-slate-800 uppercase flex items-center gap-3"><HistoryIcon /> Registro de Atividades</h2>
-                
-                <div className="flex flex-wrap items-center gap-4 bg-slate-50 p-4 rounded-3xl border border-slate-100 w-full md:w-auto">
-                  <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-200">
-                    <CalendarIcon />
-                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="outline-none text-[10px] font-black uppercase text-indigo-600" title="Data Inicial" />
-                  </div>
-                  <span className="text-[10px] font-black text-slate-300 uppercase">até</span>
-                  <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-200">
-                    <CalendarIcon />
-                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="outline-none text-[10px] font-black uppercase text-indigo-600" title="Data Final" />
-                  </div>
-                  {(startDate || endDate) && (
-                    <button onClick={() => { setStartDate(''); setEndDate(''); }} className="text-red-500 p-2 hover:bg-red-50 rounded-xl transition-colors" title="Limpar"><XIcon /></button>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {filteredTransactions.length > 0 ? filteredTransactions.map(t => (
-                  <div key={t.id} className="flex flex-col md:flex-row justify-between items-center p-6 bg-slate-50 rounded-[28px] border border-slate-100 hover:border-indigo-100 transition-all text-left w-full gap-4">
-                    <div className="flex items-center gap-6 flex-1 text-left">
-                      <div className={`p-4 rounded-2xl ${t.type === TRANSACTION_TYPES.ENTRY ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                        {t.type === TRANSACTION_TYPES.ENTRY ? <PlusIcon /> : <AlertTriangleIcon />}
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-slate-800 tracking-tighter">{t.productName}</p>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Responsável: {t.userName}</p>
-                      </div>
-                    </div>
-                    <div className="text-right flex flex-col items-end">
-                      <p className={`text-xl font-black ${t.type === TRANSACTION_TYPES.ENTRY ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {t.type === TRANSACTION_TYPES.ENTRY ? '+' : '-'}{t.quantity}
-                      </p>
-                      <p className="text-[9px] font-bold text-slate-300 uppercase">{new Date(t.date).toLocaleString('pt-BR')}</p>
-                    </div>
-                  </div>
-                )) : (
-                  <div className="py-20 text-center text-slate-300 uppercase font-black text-xs">Nenhuma atividade registrada</div>
-                )}
-              </div>
-           </div>
-        )}
       </main>
 
-      {/* Modal de Exclusão */}
       {modalType === 'delete' && selectedProduct && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[48px] w-full max-w-md p-12 shadow-2xl animate-in fade-in slide-in-from-bottom-10 duration-300">
-            <div className="w-20 h-20 bg-red-100 text-red-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner"><TrashIcon /></div>
-            <h2 className="text-2xl font-black uppercase text-slate-800 mb-4">Confirmar Exclusão?</h2>
-            <p className="text-slate-400 font-bold text-xs uppercase mb-12">O produto <strong>{selectedProduct.name}</strong> será removido permanentemente.</p>
+          <div className="bg-white rounded-[48px] w-full max-w-md p-12 shadow-2xl">
+            <div className="w-20 h-20 bg-red-100 text-red-600 rounded-3xl flex items-center justify-center mx-auto mb-8"><TrashIcon /></div>
+            <h2 className="text-2xl font-black uppercase text-slate-800 mb-4">Excluir Produto?</h2>
+            <p className="text-slate-400 font-bold text-xs mb-12">O produto {selectedProduct.name} será removido permanentemente.</p>
             <div className="flex gap-4">
-              <button onClick={() => setModalType(null)} className="flex-1 bg-slate-100 py-6 rounded-[28px] font-black text-[10px] uppercase text-slate-400 active:scale-95 transition-all">Cancelar</button>
-              <button onClick={confirmDelete} className="flex-[2] bg-red-600 text-white py-6 rounded-[28px] font-black text-[10px] uppercase shadow-2xl active:scale-95 transition-all">Sim, Excluir</button>
+              <button onClick={() => setModalType(null)} className="flex-1 bg-slate-100 py-6 rounded-[28px] font-black text-[10px] uppercase">Cancelar</button>
+              <button onClick={confirmDelete} className="flex-[2] bg-red-600 text-white py-6 rounded-[28px] font-black text-[10px] uppercase">Sim, Excluir</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modais de Cadastro/Edição */}
       {(modalType === 'add' || modalType === 'edit') && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-[56px] w-full max-w-2xl p-8 md:p-14 shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-300">
-            <h2 className="text-4xl font-black mb-12 uppercase tracking-tighter text-slate-800 text-center">{modalType === 'add' ? 'Novo Registro' : 'Editar Registro'}</h2>
+          <div className="bg-white rounded-[56px] w-full max-w-2xl p-8 md:p-14 shadow-2xl">
+            <h2 className="text-3xl font-black mb-12 uppercase text-slate-800 text-center">Cadastro de {activeGroup === 'RAW_MATERIAL' ? 'Matéria Prima' : 'Produto Acabado'}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-              <div className="md:col-span-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Nome Completo</label>
-                <input value={form.name || ''} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[28px] outline-none font-bold border-4 border-transparent focus:border-indigo-600 shadow-inner" />
-              </div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Código Interno</label><input value={form.code || ''} onChange={e => setForm({...form, code: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600 shadow-inner" /></div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Tipo</label>
-                <select value={form.type || activeGroup} onChange={e => setForm({...form, type: e.target.value as any})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600 shadow-inner appearance-none">
-                  <option value="RAW_MATERIAL">Matéria Prima</option>
-                  <option value="FINISHED_GOOD">Produto Acabado</option>
+              <div className="md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Nome do Produto</label><input value={form.name || ''} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[28px] outline-none font-bold border-4 border-transparent focus:border-indigo-600" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Código Interno</label><input value={form.code || ''} onChange={e => setForm({...form, code: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Categoria</label>
+                <select value={form.category || ''} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600 outline-none">
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option value="Diversos">Diversos</option>
                 </select>
               </div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">EAN (Unitário)</label><input value={form.ean || ''} onChange={e => setForm({...form, ean: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600 shadow-inner" /></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Custo Unitário (R$)</label><input type="number" value={form.costPrice || ''} onChange={e => setForm({...form, costPrice: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600 shadow-inner" /></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Preço Venda (R$)</label><input type="number" value={form.salePrice || ''} onChange={e => setForm({...form, salePrice: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600 shadow-inner" /></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Consumo Mensal</label><input type="number" value={form.monthlyConsumption || ''} onChange={e => setForm({...form, monthlyConsumption: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600 shadow-inner" /></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Estoque Mínimo</label><input type="number" value={form.minStock || ''} onChange={e => setForm({...form, minStock: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600 shadow-inner" /></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Categoria</label><input value={form.category || 'Geral'} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600 shadow-inner" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">EAN (Unitário)</label><input value={form.ean || ''} onChange={e => setForm({...form, ean: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Custo Unitário</label><input type="number" value={form.costPrice || ''} onChange={e => setForm({...form, costPrice: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">P. Venda</label><input type="number" value={form.salePrice || ''} onChange={e => setForm({...form, salePrice: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Estoque Mínimo</label><input type="number" value={form.minStock || ''} onChange={e => setForm({...form, minStock: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase block mb-3 px-2">Consumo Mensal</label><input type="number" value={form.monthlyConsumption || ''} onChange={e => setForm({...form, monthlyConsumption: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 p-6 rounded-[28px] font-bold border-4 border-transparent focus:border-indigo-600" /></div>
             </div>
             <div className="flex gap-6 mt-14">
-              <button onClick={() => setModalType(null)} className="flex-1 bg-slate-100 text-slate-500 font-black py-7 rounded-[32px] uppercase active:scale-95 transition-all hover:bg-slate-200">Cancelar</button>
+              <button onClick={() => setModalType(null)} className="flex-1 bg-slate-100 text-slate-500 font-black py-7 rounded-[32px] uppercase">Cancelar</button>
               <button onClick={() => {
                 if (modalType === 'edit' && selectedProduct) {
                   setProducts(prev => prev.map(p => p.id === selectedProduct.id ? ({ ...p, ...form } as Product) : p));
                 } else {
-                  const newProduct: Product = { 
-                    id: crypto.randomUUID(), type: form.type || activeGroup,
-                    code: form.code || '000', name: form.name || 'Sem Nome', category: form.category || 'Geral', unit: form.unit || 'UN', 
-                    currentStock: 0, costPrice: form.costPrice || 0, salePrice: form.salePrice || 0,
-                    minStock: form.minStock || 0, safetyStock: (form.minStock || 0) * 1.5, monthlyConsumption: form.monthlyConsumption || 0, 
-                    costHistory: [], ean: form.ean, dun: form.dun
-                  };
-                  setProducts(prev => [newProduct, ...prev]);
+                  const newProd: Product = { id: crypto.randomUUID(), type: activeGroup, name: form.name || 'S/N', code: form.code || '000', category: form.category || 'Geral', unit: form.unit || 'UN', currentStock: 0, costPrice: form.costPrice || 0, salePrice: form.salePrice || 0, minStock: form.minStock || 0, safetyStock: (form.minStock || 0) * 1.5, monthlyConsumption: form.monthlyConsumption || 0, ean: form.ean };
+                  setProducts(prev => [newProd, ...prev]);
                 }
-                setModalType(null); setForm({}); setSelectedProduct(null);
-              }} className="flex-[2] bg-indigo-600 text-white py-7 rounded-[32px] font-black uppercase shadow-2xl hover:bg-indigo-700 active:scale-95 transition-all">Gravar Informações</button>
+                setModalType(null); setForm({});
+              }} className="flex-[2] bg-indigo-600 text-white py-7 rounded-[32px] font-black uppercase shadow-2xl">Gravar Dados</button>
             </div>
           </div>
         </div>
@@ -775,24 +744,13 @@ const App: React.FC = () => {
 
       {(modalType === TRANSACTION_TYPES.ENTRY || modalType === TRANSACTION_TYPES.EXIT) && selectedProduct && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[48px] w-full max-w-md p-12 shadow-2xl animate-in fade-in slide-in-from-bottom-10 duration-300">
-            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-6">Registro de {modalType}</p>
+          <div className="bg-white rounded-[48px] w-full max-w-md p-12 shadow-2xl">
+            <p className="text-[10px] font-black text-indigo-500 uppercase mb-6">{modalType}</p>
             <h2 className="text-2xl font-black uppercase text-slate-800 mb-12">{selectedProduct.name}</h2>
-            <div className="space-y-8">
-              <div>
-                <label className="text-[9px] font-black text-slate-400 uppercase block mb-4">Quantidade ({selectedProduct.unit})</label>
-                <input type="number" value={quantity || ''} onChange={e => setQuantity(parseFloat(e.target.value) || 0)} className="w-full bg-slate-50 p-8 rounded-[36px] text-5xl font-black text-indigo-600 text-center outline-none border-4 border-transparent focus:border-indigo-600 focus:bg-white transition-all shadow-inner" autoFocus />
-              </div>
-              {modalType === TRANSACTION_TYPES.ENTRY && (
-                <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase block mb-4">Novo Custo (R$)</label>
-                  <input type="number" value={transCost || ''} onChange={e => setTransCost(parseFloat(e.target.value) || 0)} className="w-full bg-slate-50 p-6 rounded-[28px] text-xl font-black text-slate-600 text-center outline-none border-4 border-transparent focus:border-indigo-600 focus:bg-white transition-all shadow-inner" />
-                </div>
-              )}
-              <div className="flex gap-4 pt-8">
-                <button onClick={() => { setModalType(null); setSelectedProduct(null); }} className="flex-1 bg-slate-100 py-7 rounded-[28px] font-black text-[10px] uppercase text-slate-400 active:scale-95 transition-all">Voltar</button>
-                <button onClick={handleTransaction} className="flex-[2] bg-indigo-600 text-white py-7 rounded-[28px] font-black text-[10px] uppercase shadow-2xl active:scale-95 transition-all">Confirmar</button>
-              </div>
+            <input type="number" value={quantity || ''} onChange={e => setQuantity(parseFloat(e.target.value) || 0)} className="w-full bg-slate-50 p-8 rounded-[36px] text-5xl font-black text-indigo-600 text-center outline-none border-4 border-transparent focus:border-indigo-600" autoFocus />
+            <div className="flex gap-4 pt-12">
+              <button onClick={() => setModalType(null)} className="flex-1 bg-slate-100 py-7 rounded-[28px] font-black text-[10px] uppercase text-slate-400">Voltar</button>
+              <button onClick={handleTransaction} className="flex-[2] bg-indigo-600 text-white py-7 rounded-[28px] font-black text-[10px] uppercase shadow-2xl">Confirmar</button>
             </div>
           </div>
         </div>
